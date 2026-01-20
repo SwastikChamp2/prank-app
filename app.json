@@ -17,7 +17,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.adarshnambiar.HelmetWasherApp",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "HelmetWasherApp needs your location to show nearby services and save your addresses.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "HelmetWasherApp needs your location to show nearby services and save your addresses."
       }
     },
     "android": {
@@ -27,14 +29,24 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static"
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow HelmetWasherApp to use your location to show nearby services and save your addresses."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

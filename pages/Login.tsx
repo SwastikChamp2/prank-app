@@ -1,217 +1,120 @@
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+// pages/Login.tsx
+import React, { useState } from 'react';
 import {
-    BackHandler,
-    Dimensions,
-    Image,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  Dimensions,
+  useColorScheme,
+  ScrollView,
+  Image,
 } from 'react-native';
-import Animated, {
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withSpring,
-    withTiming,
-} from 'react-native-reanimated';
-import Button from '../components/ui/Button';
-import Drawer from '../components/ui/Drawer';
-import Input from '../components/ui/Input';
-import LoadingDots from '../components/ui/LoadingDots';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
-import { useColorScheme } from '../hooks/use-color-scheme';
 
 const { width, height } = Dimensions.get('window');
 
-const Login: React.FC = () => {
+const Login = () => {
+  const [mobileNumber, setMobileNumber] = useState('');
   const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  const [loading, setLoading] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [phoneError, setPhoneError] = useState('');
+  const theme = Colors[colorScheme ?? 'light'];
+  const router = useRouter();
 
-  // Animation values
-  const welcomeOpacity = useSharedValue(0);
-  const welcomeTranslateY = useSharedValue(20);
-  const logoScale = useSharedValue(0);
-  const logoOpacity = useSharedValue(0);
-  const titleOpacity = useSharedValue(0);
-  const titleTranslateY = useSharedValue(20);
-  const inputOpacity = useSharedValue(0);
-  const buttonOpacity = useSharedValue(0);
-
-  useEffect(() => {
-    welcomeOpacity.value = withDelay(200, withTiming(1, { duration: 600 }));
-    welcomeTranslateY.value = withDelay(200, withSpring(0, { damping: 12, stiffness: 100 }));
-    
-    logoOpacity.value = withDelay(400, withTiming(1, { duration: 600 }));
-    logoScale.value = withDelay(400, withSpring(1, { damping: 15, stiffness: 100 }));
-    
-    titleOpacity.value = withDelay(600, withTiming(1, { duration: 600 }));
-    titleTranslateY.value = withDelay(600, withSpring(0, { damping: 12, stiffness: 100 }));
-    
-    inputOpacity.value = withDelay(800, withTiming(1, { duration: 600 }));
-    buttonOpacity.value = withDelay(1000, withTiming(1, { duration: 600 }));
-  }, []);
-
-  useEffect(() => {
-    const backAction = () => {
-      router.back();
-      return true;
-    };
-
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-    return () => backHandler.remove();
-  }, []);
-
-  const validatePhoneNumber = (phone: string) => {
-    if (!phone) {
-      setPhoneError('Phone number is required');
-      return false;
-    }
-    if (phone.length !== 10) {
-      setPhoneError('Please enter a valid 10-digit phone number');
-      return false;
-    }
-    setPhoneError('');
-    return true;
+  const handleContinue = () => {
+    console.log('Continue with:', mobileNumber);
+    router.push('/verify-otp');
   };
 
-  const handlePhoneChange = (text: string) => {
-    const numericText = text.replace(/[^0-9]/g, '');
-    setPhoneNumber(numericText);
-    if (phoneError) setPhoneError('');
+  const handleNavigateToSignUp = () => {
+    router.push('/signup');
   };
-
-  const handleLogin = () => {
-    if (validatePhoneNumber(phoneNumber)) {
-      setLoading(true);
-      
-      setTimeout(() => {
-        setLoading(false);
-        router.push({
-          pathname: '/verify-otp',
-          params: { phoneNumber }
-        });
-      }, 200);
-    }
-  };
-
-  const handleBack = () => {
-    router.back();
-  };
-
-  const welcomeAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: welcomeOpacity.value,
-    transform: [{ translateY: welcomeTranslateY.value }],
-  }));
-
-  const logoAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ scale: logoScale.value }],
-  }));
-
-  const titleAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: titleOpacity.value,
-    transform: [{ translateY: titleTranslateY.value }],
-  }));
-
-  const inputAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: inputOpacity.value,
-    transform: [{ translateY: interpolate(inputOpacity.value, [0, 1], [20, 0]) }],
-  }));
-
-  const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: buttonOpacity.value,
-    transform: [{ translateY: interpolate(buttonOpacity.value, [0, 1], [20, 0]) }],
-  }));
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar
-        barStyle={colorScheme === 'light' ? 'dark-content' : 'light-content'}
-        backgroundColor={colors.background}
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Top Decorative Image*/}
+      <Image
+        source={require('../assets/images/top-decoration.png')}
+        style={styles.topDecoration}
+        resizeMode="contain"
       />
-      
-      <View style={[styles.background, { backgroundColor: colors.background }]}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-          <Text style={[styles.backText, { color: colors.grey1 }]}>←</Text>
-        </TouchableOpacity>
-      </View>
 
-      <Drawer 
-        height={height * 0.85} 
-        delay={400} 
-        backgroundColor={colors.background}
-        borderRadius={40}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.drawerContent, { backgroundColor: colors.background }]}>
-          <Animated.Text style={[styles.welcomeText, { color: colors.text }, welcomeAnimatedStyle]}>
-            Welcome Back
-          </Animated.Text>
-
-          <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-            <Image
-              source={require('../assets/images/logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </Animated.View>
-
-          <Animated.Text style={[styles.title, { color: colors.text }, titleAnimatedStyle]}>
-            Helmet Washer
-          </Animated.Text>
-
-          <View style={styles.formSection}>
-            <Animated.View style={[styles.inputContainer, inputAnimatedStyle]}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>
-                Enter Phone Number
-              </Text>
-              <Text style={[styles.inputSubtext, { color: colors.grey1 }]}>
-                We will send you a verification code
-              </Text>
-              <Input
-                placeholder="Enter your phone number"
-                value={phoneNumber}
-                onChangeText={handlePhoneChange}
-                keyboardType="numeric"
-                leftIcon="call-outline"
-                error={phoneError}
-                style={styles.phoneInput}
-                maxLength={10}
-              />
-            </Animated.View>
-
-            <Animated.View style={[styles.buttonContainer, buttonAnimatedStyle]}>
-              {loading && (
-                <View style={styles.loadingContainer}>
-                  <LoadingDots 
-                    size={8} 
-                    color={colors.primary} 
-                  />
-                </View>
-              )}
-              <Button
-                title="Continue"
-                onPress={handleLogin}
-                size="large"
-                loading={loading}
-                style={[styles.continueButton, { backgroundColor: colors.primary }]}
-              />
-            </Animated.View>
-
-            <Text style={[styles.footerText, { color: colors.grey1 }]}>
-              By continuing, you agree to our{'\n'}
-              <Text style={[styles.linkText, { color: colors.primary }]}>Terms of Service</Text> and{' '}
-              <Text style={[styles.linkText, { color: colors.primary }]}>Privacy Policy</Text>
-            </Text>
+        {/* Icon Header */}
+        <View style={styles.iconHeader}>
+          <View style={[styles.iconCircle, { backgroundColor: theme.primary }]}>
+            <Ionicons name="gift" size={56} color="#FFFFFF" />
           </View>
         </View>
-      </Drawer>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: theme.text, fontFamily: Fonts.bold }]}>
+            Welcome Back
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.grey, fontFamily: Fonts.regular }]}>
+            Log in and be a prankster anonymously !
+          </Text>
+        </View>
+
+        {/* Form */}
+        <View style={styles.form}>
+          {/* Mobile Number Input */}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
+              Mobile Number
+            </Text>
+            <View style={[styles.inputContainer, { backgroundColor: theme.background }]}>
+              <Ionicons name="call-outline" size={20} color={theme.grey} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: theme.text, fontFamily: Fonts.regular }]}
+                placeholder="Enter your mobile number"
+                placeholderTextColor={theme.grey}
+                keyboardType="phone-pad"
+                value={mobileNumber}
+                onChangeText={setMobileNumber}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Spacer */}
+        <View style={styles.spacer} />
+
+        {/* Continue Button */}
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: theme.primary }]}
+          activeOpacity={0.8}
+          onPress={handleContinue}
+        >
+          <Text style={[styles.buttonText, { fontFamily: Fonts.semiBold }]}>
+            Continue
+          </Text>
+        </TouchableOpacity>
+
+        {/* Sign Up Link */}
+        <TouchableOpacity
+          style={styles.signUpLink}
+          activeOpacity={0.7}
+          onPress={handleNavigateToSignUp}
+        >
+          <Text style={[styles.linkText, { color: theme.primary, fontFamily: Fonts.medium }]}>
+            New here? Join the Pranksters!
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Bottom Decorative Image*/}
+      <Image
+        source={require('../assets/images/bottom-decoration.png')}
+        style={styles.bottomDecoration}
+        resizeMode="contain"
+      />
     </View>
   );
 };
@@ -220,86 +123,120 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  background: {
-    flex: 1,
-    paddingHorizontal: 20,
+  topDecoration: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    width: width,
+    height: 150,
+    zIndex: 0,
   },
-  backButton: {
-    alignSelf: 'flex-start',
-    padding: 8,
+  bottomDecoration: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: width,
+    height: 150,
+    zIndex: 0,
   },
-  backText: {
-    fontFamily: Fonts.medium,
-    fontSize: 24,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: 100,
+    paddingBottom: 160,
   },
-  drawerContent: {
-    flex: 1,
-    paddingHorizontal: 32,
-    paddingBottom: 40,
+  iconHeader: {
     alignItems: 'center',
-  },
-  welcomeText: {
-    fontFamily: Fonts.medium,
-    fontSize: 18,
-    textAlign: 'center',
     marginBottom: 30,
   },
-  logoContainer: {
-    marginBottom: 20,
+  iconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#E8764B',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  logo: {
-    width: 100,
-    height: 100,
+  header: {
+    marginBottom: 40,
   },
   title: {
-    fontFamily: Fonts.heading,
     fontSize: 32,
-    textAlign: 'center',
-    marginBottom: 50,
-  },
-  formSection: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  inputContainer: {
-    width: '100%',
-  },
-  inputLabel: {
-    fontFamily: Fonts.medium,
-    fontSize: 16,
-    textAlign: 'center',
+    fontWeight: '700',
     marginBottom: 8,
   },
-  inputSubtext: {
-    fontFamily: Fonts.regular,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 30,
+  subtitle: {
+    fontSize: 15,
+    lineHeight: 22,
   },
-  phoneInput: {
-    marginBottom: 0,
-  },
-  buttonContainer: {
-    width: '100%',
+  form: {
     marginBottom: 20,
   },
-  loadingContainer: {
-    marginBottom: 20,
+  inputGroup: {
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  inputContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    height: 56,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
   },
-  continueButton: {
+  inputIcon: {
+    marginRight: 12,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    height: '100%',
+  },
+  spacer: {
+    flex: 1,
+  },
+  button: {
     width: '100%',
-    borderRadius: 16,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: '#E8764B',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  footerText: {
-    fontFamily: Fonts.regular,
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  signUpLink: {
+    alignItems: 'center',
+    marginBottom: 20,
   },
   linkText: {
-    fontFamily: Fonts.medium,
+    fontSize: 15,
+    fontWeight: '500',
   },
 });
 

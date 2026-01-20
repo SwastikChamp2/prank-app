@@ -1,5 +1,5 @@
 import React from 'react';
-import LegalInformation from '../pages/Profile/LegalInformation';
+import LegalInformation from '../pages/Settings/LegalInformation';
 
 export default function LegalScreen() {
   return <LegalInformation />;

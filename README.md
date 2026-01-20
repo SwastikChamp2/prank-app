@@ -48,3 +48,22 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+
+
+
+Prompt for Navigation 
+
+
+I'm using React Native Expo with Expo Router. 
+
+NAVIGATION: Use `useRouter()` from 'expo-router' with router.push('/page-name') and router.back()
+THEME: Import from '../constants/theme' and use Colors[colorScheme ?? 'light'] and Fonts
+STRUCTURE: Only provide the main component for pages/NewPage.tsx (I'll handle wrapper & routing)
+
+Available theme colors: primary (#E8764B), text, background, grey, brown, cardBg
+Available fonts: Fonts.regular, Fonts.medium, Fonts.semiBold, Fonts.bold
+
+Match the design style of existing Login/Signup screens with decorative emojis scattered around.
+
+Create: [YOUR REQUEST HERE]

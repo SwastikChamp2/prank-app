@@ -1,6 +1,6 @@
 import React from 'react';
-import GetStarted from '../pages/GetStarted';
+import Home from '../pages/Home';
 
-export default function GetStartedScreen() {
-  return <GetStarted />;
+export default function HomeScreen() {
+  return <Home />;
 }
