@@ -1,5 +1,5 @@
 // pages/Login.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,22 +10,74 @@ import {
   useColorScheme,
   ScrollView,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { auth } from '../config/firebase.config';
+import { sendOTP } from '../services/AuthServices';
 
 const { width, height } = Dimensions.get('window');
 
 const Login = () => {
   const [mobileNumber, setMobileNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const router = useRouter();
+  const recaptchaVerifier = useRef(null);
 
-  const handleContinue = () => {
-    console.log('Continue with:', mobileNumber);
-    router.push('/verify-otp');
+  const validatePhoneNumber = (phone: string) => {
+    if (!phone) {
+      setError('Phone number is required');
+      return false;
+    }
+    if (phone.length !== 10) {
+      setError('Please enter a valid 10-digit phone number');
+      return false;
+    }
+    setError('');
+    return true;
+  };
+
+  const handleMobileNumberChange = (text: string) => {
+    const numericText = text.replace(/[^0-9]/g, '');
+    setMobileNumber(numericText);
+    if (error) setError('');
+  };
+
+  const handleContinue = async () => {
+    if (!validatePhoneNumber(mobileNumber)) {
+      Alert.alert('Invalid Phone Number', error);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const formattedPhoneNumber = `+91${mobileNumber}`;
+      const confirmationResult = await sendOTP(
+        formattedPhoneNumber,
+        recaptchaVerifier.current
+      );
+
+      // Store confirmation result globally
+      (global as any).confirmationResult = confirmationResult;
+
+      setLoading(false);
+      router.push({
+        pathname: '/verify-otp',
+        params: { phoneNumber: mobileNumber, isSignup: 'false' }
+      });
+    } catch (error: any) {
+      setLoading(false);
+      console.error('OTP Error:', error);
+      Alert.alert('Error', error.message || 'Failed to send OTP. Please try again.');
+    }
   };
 
   const handleNavigateToSignUp = () => {
@@ -34,6 +86,12 @@ const Login = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={auth.app.options}
+        attemptInvisibleVerification={true}
+      />
+
       {/* Top Decorative Image*/}
       <Image
         source={require('../assets/images/top-decoration.png')}
@@ -69,7 +127,13 @@ const Login = () => {
             <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
               Mobile Number
             </Text>
-            <View style={[styles.inputContainer, { backgroundColor: theme.background }]}>
+            <View style={[
+              styles.inputContainer,
+              {
+                backgroundColor: theme.background,
+                borderColor: error ? '#FF3B30' : '#E5E5E5'
+              }
+            ]}>
               <Ionicons name="call-outline" size={20} color={theme.grey} style={styles.inputIcon} />
               <TextInput
                 style={[styles.input, { color: theme.text, fontFamily: Fonts.regular }]}
@@ -77,9 +141,14 @@ const Login = () => {
                 placeholderTextColor={theme.grey}
                 keyboardType="phone-pad"
                 value={mobileNumber}
-                onChangeText={setMobileNumber}
+                onChangeText={handleMobileNumberChange}
+                maxLength={10}
+                editable={!loading}
               />
             </View>
+            {error ? (
+              <Text style={styles.errorText}>{error}</Text>
+            ) : null}
           </View>
         </View>
 
@@ -88,13 +157,22 @@ const Login = () => {
 
         {/* Continue Button */}
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
+          style={[
+            styles.button,
+            { backgroundColor: theme.primary },
+            loading && styles.buttonDisabled
+          ]}
           activeOpacity={0.8}
           onPress={handleContinue}
+          disabled={loading}
         >
-          <Text style={[styles.buttonText, { fontFamily: Fonts.semiBold }]}>
-            Continue
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.buttonText, { fontFamily: Fonts.semiBold }]}>
+              Continue
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Sign Up Link */}
@@ -102,6 +180,7 @@ const Login = () => {
           style={styles.signUpLink}
           activeOpacity={0.7}
           onPress={handleNavigateToSignUp}
+          disabled={loading}
         >
           <Text style={[styles.linkText, { color: theme.primary, fontFamily: Fonts.medium }]}>
             New here? Join the Pranksters!
@@ -196,7 +275,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
   },
   inputIcon: {
     marginRight: 12,
@@ -205,6 +283,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     height: '100%',
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
   spacer: {
     flex: 1,
@@ -224,6 +308,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     color: '#FFFFFF',

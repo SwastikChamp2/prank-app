@@ -182,9 +182,9 @@ const Cart = () => {
                                 <Text style={[styles.cardName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                     Master Card
                                 </Text>
-                                <Text style={[styles.cardNumber, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                {/* <Text style={[styles.cardNumber, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                     **** **** 1234
-                                </Text>
+                                </Text> */}
                             </View>
                         </View>
                         <Ionicons name="chevron-forward" size={24} color={theme.grey} />
@@ -257,9 +257,9 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             Net Banking
                                         </Text>
-                                        <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                             All major banks supported
-                                        </Text>
+                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[
@@ -289,9 +289,9 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             UPI
                                         </Text>
-                                        <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                             Google Pay, PhonePe, Paytm
-                                        </Text>
+                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[
@@ -321,9 +321,9 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             Paypal
                                         </Text>
-                                        <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                             sosk****@email.com
-                                        </Text>
+                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[
@@ -350,9 +350,9 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             Mastercard
                                         </Text>
-                                        <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                             4827 8472 7424 ****
-                                        </Text>
+                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[

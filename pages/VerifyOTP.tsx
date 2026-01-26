@@ -10,24 +10,39 @@ import {
   useColorScheme,
   Modal,
   Animated,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
+import { verifyOTP, createOrUpdateUser } from '../services/AuthServices';
+import { auth } from '../config/firebase.config';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { signInWithPhoneNumber } from 'firebase/auth';
 
 const { width, height } = Dimensions.get('window');
 
-const CORRECT_OTP = '123456';
-
 const VerifyOTP = () => {
+  const { phoneNumber, username, isSignup } = useLocalSearchParams<{
+    phoneNumber: string;
+    username?: string;
+    isSignup: string;
+  }>();
+
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [error, setError] = useState('');
   const [isShaking, setIsShaking] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(180);
+  const [canResend, setCanResend] = useState(false);
+
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const router = useRouter();
+  const recaptchaVerifier = useRef(null);
 
   // Animation values
   const shakeAnimation = useRef(new Animated.Value(0)).current;
@@ -58,6 +73,24 @@ const VerifyOTP = () => {
   useEffect(() => {
     inputRefs[0].current?.focus();
   }, []);
+
+  // Timer countdown
+  useEffect(() => {
+    if (timeLeft > 0) {
+      const timer = setTimeout(() => {
+        setTimeLeft(timeLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setCanResend(true);
+    }
+  }, [timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
 
   // Show toast animation
   const showToast = (message: string) => {
@@ -156,7 +189,7 @@ const VerifyOTP = () => {
     });
   };
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     const enteredOtp = otp.join('');
 
     // Check if OTP is complete
@@ -165,13 +198,42 @@ const VerifyOTP = () => {
       return;
     }
 
-    if (enteredOtp === CORRECT_OTP) {
+    setLoading(true);
+
+    try {
+      const confirmationResult = (global as any).confirmationResult;
+
+      if (!confirmationResult) {
+        throw new Error('No confirmation result found. Please try again.');
+      }
+
+      // Verify OTP
+      const user = await verifyOTP(confirmationResult, enteredOtp);
+
+      // Create or update user in Firestore
+      const usernameToSave = isSignup === 'true'
+        ? (username || (global as any).signupUsername)
+        : undefined;
+
+      await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave);
+
+      // Clear global data
+      (global as any).confirmationResult = null;
+      (global as any).signupUsername = null;
+
+      setLoading(false);
+
+      // Show success
       setShowConfetti(true);
       startConfettiAnimation();
       setTimeout(() => {
         setShowSuccessModal(true);
       }, 500);
-    } else {
+
+    } catch (error: any) {
+      setLoading(false);
+      console.error('Verification Error:', error);
+
       // Incorrect OTP
       triggerShake();
       showToast('Incorrect OTP. Please try again.');
@@ -184,11 +246,33 @@ const VerifyOTP = () => {
     }
   };
 
-  const handleResend = () => {
-    console.log('Resend OTP');
-    setOtp(['', '', '', '', '', '']);
-    inputRefs[0].current?.focus();
-    showToast('New OTP sent successfully!');
+  const handleResend = async () => {
+    if (!canResend) return;
+
+    setLoading(true);
+
+    try {
+      const formattedPhoneNumber = `+91${phoneNumber}`;
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        formattedPhoneNumber,
+        recaptchaVerifier.current
+      );
+
+      // Store new confirmation result
+      (global as any).confirmationResult = confirmationResult;
+
+      setLoading(false);
+      setTimeLeft(180);
+      setCanResend(false);
+      setOtp(['', '', '', '', '', '']);
+      inputRefs[0].current?.focus();
+      showToast('New OTP sent successfully!');
+    } catch (error: any) {
+      setLoading(false);
+      Alert.alert('Error', 'Failed to resend OTP. Please try again.');
+      console.error('Resend OTP Error:', error);
+    }
   };
 
   const handleStartGifting = () => {
@@ -203,6 +287,12 @@ const VerifyOTP = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={auth.app.options}
+        attemptInvisibleVerification={true}
+      />
+
       {/* Toast Notification */}
       {error && (
         <Animated.View
@@ -246,7 +336,7 @@ const VerifyOTP = () => {
 
         {/* Description */}
         <Text style={[styles.description, { color: theme.grey, fontFamily: Fonts.regular }]}>
-          We have sent a 6-digit code to your{'\n'}mobile number +XX XXX XXX-XXXX
+          We have sent a 6-digit code to your{'\n'}mobile number +91 {phoneNumber}
         </Text>
 
         {/* OTP Input */}
@@ -288,29 +378,60 @@ const VerifyOTP = () => {
                 keyboardType="number-pad"
                 maxLength={1}
                 selectTextOnFocus
+                editable={!loading}
               />
             </View>
           ))}
         </Animated.View>
 
+        {/* Timer/Resend */}
+        <View style={styles.timerContainer}>
+          {canResend ? (
+            <TouchableOpacity onPress={handleResend} disabled={loading}>
+              <Text style={[styles.resendLink, { color: theme.primary, fontFamily: Fonts.medium }]}>
+                Resend OTP
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={[styles.timerText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+              Resend in {formatTime(timeLeft)}
+            </Text>
+          )}
+        </View>
+
         {/* Verify Button */}
         <TouchableOpacity
-          style={[styles.button, { backgroundColor: theme.primary }]}
+          style={[
+            styles.button,
+            { backgroundColor: theme.primary },
+            loading && styles.buttonDisabled
+          ]}
           activeOpacity={0.8}
           onPress={handleVerify}
+          disabled={loading}
         >
-          <Text style={[styles.buttonText, { fontFamily: Fonts.semiBold }]}>
-            Verify & Continue
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={[styles.buttonText, { fontFamily: Fonts.semiBold }]}>
+              Verify & Continue
+            </Text>
+          )}
         </TouchableOpacity>
 
         {/* Resend */}
         <View style={styles.resendContainer}>
           <Text style={[styles.resendText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-            Didn't reveice the code?{' '}
+            Didn't receive the code?{' '}
           </Text>
-          <TouchableOpacity onPress={handleResend}>
-            <Text style={[styles.resendLink, { color: theme.primary, fontFamily: Fonts.medium }]}>
+          <TouchableOpacity onPress={handleResend} disabled={!canResend || loading}>
+            <Text style={[
+              styles.resendLink,
+              {
+                color: canResend ? theme.primary : theme.grey,
+                fontFamily: Fonts.medium
+              }
+            ]}>
               Resend
             </Text>
           </TouchableOpacity>
@@ -370,7 +491,7 @@ const VerifyOTP = () => {
               Prankster Activated!
             </Text>
             <Text style={[styles.successDescription, { color: theme.grey, fontFamily: Fonts.regular }]}>
-              Congratulations ! You have been{'\n'}successfully logged into the app.
+              Congratulations! You have been{'\n'}successfully {isSignup === 'true' ? 'registered' : 'logged into'} the app.
             </Text>
             <Text style={[styles.successSubtext, { color: theme.grey, fontFamily: Fonts.regular }]}>
               Let the Pranking Begin 😎
@@ -486,24 +607,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 40,
+    marginBottom: 20,
   },
   otpBox: {
     width: 40,
     height: 49,
-
     borderRadius: 12,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   otpInput: {
-
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     width: '100%',
     height: '100%',
+  },
+  timerContainer: {
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  timerText: {
+    fontSize: 14,
   },
   button: {
     width: width - 48,
@@ -520,6 +646,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     color: '#FFFFFF',

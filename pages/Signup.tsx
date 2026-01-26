@@ -1,5 +1,5 @@
-// pages/Profile/Signup.tsx
-import React, { useState } from 'react';
+// pages/Signup.tsx
+import React, { useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -10,22 +10,99 @@ import {
     useColorScheme,
     ScrollView,
     Image,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { auth } from '../config/firebase.config';
+import { sendOTP } from '../services/AuthServices';
 
 const { width, height } = Dimensions.get('window');
 
 const Signup = () => {
     const [username, setUsername] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState({ username: '', phone: '' });
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
+    const recaptchaVerifier = useRef(null);
 
-    const handleSignUp = () => {
-        router.push('/verify-otp');
+    const validateForm = () => {
+        let isValid = true;
+        let newErrors = { username: '', phone: '' };
+
+        if (!username.trim()) {
+            newErrors.username = 'Username is required';
+            isValid = false;
+        } else if (username.trim().length < 3) {
+            newErrors.username = 'Username must be at least 3 characters';
+            isValid = false;
+        }
+
+        if (!mobileNumber) {
+            newErrors.phone = 'Phone number is required';
+            isValid = false;
+        } else if (mobileNumber.length !== 10) {
+            newErrors.phone = 'Please enter a valid 10-digit phone number';
+            isValid = false;
+        }
+
+        setErrors(newErrors);
+        return isValid;
+    };
+
+    const handleUsernameChange = (text: string) => {
+        setUsername(text);
+        if (errors.username) {
+            setErrors({ ...errors, username: '' });
+        }
+    };
+
+    const handleMobileNumberChange = (text: string) => {
+        const numericText = text.replace(/[^0-9]/g, '');
+        setMobileNumber(numericText);
+        if (errors.phone) {
+            setErrors({ ...errors, phone: '' });
+        }
+    };
+
+    const handleSignUp = async () => {
+        if (!validateForm()) {
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const formattedPhoneNumber = `+91${mobileNumber}`;
+            const confirmationResult = await sendOTP(
+                formattedPhoneNumber,
+                recaptchaVerifier.current
+            );
+
+            // Store confirmation result and username globally
+            (global as any).confirmationResult = confirmationResult;
+            (global as any).signupUsername = username;
+
+            setLoading(false);
+            router.push({
+                pathname: '/verify-otp',
+                params: {
+                    phoneNumber: mobileNumber,
+                    username: username,
+                    isSignup: 'true'
+                }
+            });
+        } catch (error: any) {
+            setLoading(false);
+            console.error('OTP Error:', error);
+            Alert.alert('Error', error.message || 'Failed to send OTP. Please try again.');
+        }
     };
 
     const handleBack = () => {
@@ -34,8 +111,13 @@ const Signup = () => {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
-            {/* Top Decorative Image - Placeholder */}
+            <FirebaseRecaptchaVerifierModal
+                ref={recaptchaVerifier}
+                firebaseConfig={auth.app.options}
+                attemptInvisibleVerification={true}
+            />
 
+            {/* Top Decorative Image */}
             <Image
                 source={require('../assets/images/top-decoration.png')}
                 style={styles.topDecoration}
@@ -43,7 +125,11 @@ const Signup = () => {
             />
 
             {/* Back Button */}
-            <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+            <TouchableOpacity
+                style={styles.backButton}
+                onPress={handleBack}
+                disabled={loading}
+            >
                 <Ionicons name="arrow-back" size={28} color="#6B4FD8" />
             </TouchableOpacity>
 
@@ -68,16 +154,26 @@ const Signup = () => {
                         <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
                             Username
                         </Text>
-                        <View style={[styles.inputContainer, { backgroundColor: theme.background }]}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: theme.background,
+                                borderColor: errors.username ? '#FF3B30' : '#E5E5E5'
+                            }
+                        ]}>
                             <Ionicons name="person-outline" size={20} color={theme.grey} style={styles.inputIcon} />
                             <TextInput
                                 style={[styles.input, { color: theme.text, fontFamily: Fonts.regular }]}
                                 placeholder="Choose a prankster name"
                                 placeholderTextColor={theme.grey}
                                 value={username}
-                                onChangeText={setUsername}
+                                onChangeText={handleUsernameChange}
+                                editable={!loading}
                             />
                         </View>
+                        {errors.username ? (
+                            <Text style={styles.errorText}>{errors.username}</Text>
+                        ) : null}
                     </View>
 
                     {/* Mobile Number Input */}
@@ -85,7 +181,13 @@ const Signup = () => {
                         <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
                             Mobile Number
                         </Text>
-                        <View style={[styles.inputContainer, { backgroundColor: theme.background }]}>
+                        <View style={[
+                            styles.inputContainer,
+                            {
+                                backgroundColor: theme.background,
+                                borderColor: errors.phone ? '#FF3B30' : '#E5E5E5'
+                            }
+                        ]}>
                             <Ionicons name="call-outline" size={20} color={theme.grey} style={styles.inputIcon} />
                             <TextInput
                                 style={[styles.input, { color: theme.text, fontFamily: Fonts.regular }]}
@@ -93,9 +195,14 @@ const Signup = () => {
                                 placeholderTextColor={theme.grey}
                                 keyboardType="phone-pad"
                                 value={mobileNumber}
-                                onChangeText={setMobileNumber}
+                                onChangeText={handleMobileNumberChange}
+                                maxLength={10}
+                                editable={!loading}
                             />
                         </View>
+                        {errors.phone ? (
+                            <Text style={styles.errorText}>{errors.phone}</Text>
+                        ) : null}
                     </View>
                 </View>
 
@@ -104,17 +211,26 @@ const Signup = () => {
 
                 {/* Sign Up Button */}
                 <TouchableOpacity
-                    style={[styles.button, { backgroundColor: theme.primary }]}
+                    style={[
+                        styles.button,
+                        { backgroundColor: theme.primary },
+                        loading && styles.buttonDisabled
+                    ]}
                     activeOpacity={0.8}
                     onPress={handleSignUp}
+                    disabled={loading}
                 >
-                    <Text style={[styles.buttonText, { fontFamily: Fonts.semiBold }]}>
-                        Join the Pranksters
-                    </Text>
+                    {loading ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                        <Text style={[styles.buttonText, { fontFamily: Fonts.semiBold }]}>
+                            Join the Pranksters
+                        </Text>
+                    )}
                 </TouchableOpacity>
             </ScrollView>
 
-            {/* Bottom Decorative Image - Placeholder */}
+            {/* Bottom Decorative Image */}
             <Image
                 source={require('../assets/images/bottom-decoration.png')}
                 style={styles.bottomDecoration}
@@ -192,7 +308,6 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         paddingHorizontal: 16,
         borderWidth: 1,
-        borderColor: '#E5E5E5',
     },
     inputIcon: {
         marginRight: 12,
@@ -201,6 +316,12 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         height: '100%',
+    },
+    errorText: {
+        color: '#FF3B30',
+        fontSize: 12,
+        marginTop: 4,
+        marginLeft: 4,
     },
     spacer: {
         flex: 1,
@@ -219,6 +340,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
+    },
+    buttonDisabled: {
+        opacity: 0.7,
     },
     buttonText: {
         color: '#FFFFFF',
