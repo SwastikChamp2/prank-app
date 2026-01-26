@@ -41,7 +41,7 @@ const Home = () => {
     {
       id: '2',
       title: 'Scary Pranks',
-      count: '12 Product',
+      count: '12 Pranks',
       backgroundColor: '#7FB899',
       imageUrl: require('../assets/images/Home/scary-pranks.png'),
     },
@@ -54,14 +54,14 @@ const Home = () => {
     },
     {
       id: '4',
-      title: 'Shocking',
-      count: '155 Product',
+      title: 'Shocking Pranks',
+      count: '155 Pranks',
       backgroundColor: '#D1D1D1',
       imageUrl: require('../assets/images/Home/shocking-pranks.png'),
     },
     {
       id: '5',
-      title: 'Others',
+      title: 'Other Pranks',
       count: '5 Pranks',
       backgroundColor: '#E8E8E8',
       imageUrl: require('../assets/images/Home/other-pranks.png'),
