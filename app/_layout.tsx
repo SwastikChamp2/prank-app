@@ -53,6 +53,12 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="get-started"
+              options={{
+                animation: 'default',
+              }}
+            />
+            <Stack.Screen
               name="login"
               options={{
                 animation: 'default',

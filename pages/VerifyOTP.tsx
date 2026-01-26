@@ -17,10 +17,10 @@ import { Colors, Fonts } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 
-const CORRECT_OTP = '1234';
+const CORRECT_OTP = '123456';
 
 const VerifyOTP = () => {
-  const [otp, setOtp] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [error, setError] = useState('');
@@ -36,6 +36,8 @@ const VerifyOTP = () => {
 
   // Refs for input fields
   const inputRefs = [
+    useRef<TextInput>(null),
+    useRef<TextInput>(null),
     useRef<TextInput>(null),
     useRef<TextInput>(null),
     useRef<TextInput>(null),
@@ -116,7 +118,7 @@ const VerifyOTP = () => {
     setOtp(newOtp);
 
     // Auto-focus next input
-    if (value && index < 3) {
+    if (value && index < 5) {
       inputRefs[index + 1].current?.focus();
     }
   };
@@ -158,7 +160,7 @@ const VerifyOTP = () => {
     const enteredOtp = otp.join('');
 
     // Check if OTP is complete
-    if (enteredOtp.length < 4) {
+    if (enteredOtp.length < 6) {
       showToast('Please enter complete OTP code');
       return;
     }
@@ -176,7 +178,7 @@ const VerifyOTP = () => {
 
       // Clear OTP after showing error
       setTimeout(() => {
-        setOtp(['', '', '', '']);
+        setOtp(['', '', '', '', '', '']);
         inputRefs[0].current?.focus();
       }, 500);
     }
@@ -184,7 +186,7 @@ const VerifyOTP = () => {
 
   const handleResend = () => {
     console.log('Resend OTP');
-    setOtp(['', '', '', '']);
+    setOtp(['', '', '', '', '', '']);
     inputRefs[0].current?.focus();
     showToast('New OTP sent successfully!');
   };
@@ -244,7 +246,7 @@ const VerifyOTP = () => {
 
         {/* Description */}
         <Text style={[styles.description, { color: theme.grey, fontFamily: Fonts.regular }]}>
-          We have sent a 4-digit code to your{'\n'}mobile number +XX XXX XXX-XXXX
+          We have sent a 6-digit code to your{'\n'}mobile number +XX XXX XXX-XXXX
         </Text>
 
         {/* OTP Input */}
@@ -483,19 +485,21 @@ const styles = StyleSheet.create({
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
+    gap: 8,
     marginBottom: 40,
   },
   otpBox: {
-    width: 64,
-    height: 64,
+    width: 40,
+    height: 49,
+
     borderRadius: 12,
     borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
   otpInput: {
-    fontSize: 24,
+
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     width: '100%',
