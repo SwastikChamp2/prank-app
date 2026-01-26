@@ -33,6 +33,8 @@ const AddAddress = () => {
     const [lastName, setLastName] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAddress, setSelectedAddress] = useState('');
+    const [suggestions, setSuggestions] = useState<any[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
     const [mapRegion, setMapRegion] = useState({
         latitude: 19.2183,
         longitude: 72.9781,
@@ -45,10 +47,25 @@ const AddAddress = () => {
     });
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
+    const [isMapReady, setIsMapReady] = useState(false);
 
     useEffect(() => {
         getCurrentLocation();
     }, []);
+
+    // Debounced search for suggestions
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchQuery.trim().length > 2) {
+                fetchSuggestions(searchQuery);
+            } else {
+                setSuggestions([]);
+                setShowSuggestions(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     const getCurrentLocation = async () => {
         try {
@@ -80,6 +97,7 @@ const AddAddress = () => {
             });
 
             setMarkerCoordinate({ latitude, longitude });
+            setIsMapReady(true);
             setLoading(false);
         } catch (error) {
             console.error('Error getting location:', error);
@@ -126,6 +144,90 @@ const AddAddress = () => {
         }
     };
 
+    const fetchSuggestions = async (query: string) => {
+        try {
+            // Use OpenStreetMap Nominatim API for better address suggestions
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?` +
+                `format=json&` +
+                `q=${encodeURIComponent(query)}&` +
+                `limit=5&` +
+                `addressdetails=1`,
+                {
+                    headers: {
+                        'Accept': 'application/json',
+                        'User-Agent': 'prank-app' // Replace with your app name
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch suggestions');
+            }
+
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const formattedSuggestions = data.map((item: any) => ({
+                    latitude: parseFloat(item.lat),
+                    longitude: parseFloat(item.lon),
+                    address: item.display_name,
+                    // Store additional details if needed
+                    name: item.name,
+                    type: item.type,
+                }));
+
+                setSuggestions(formattedSuggestions);
+                setShowSuggestions(formattedSuggestions.length > 0);
+            } else {
+                setSuggestions([]);
+                setShowSuggestions(false);
+            }
+        } catch (error) {
+            console.error('Error fetching suggestions:', error);
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
+
+    const handleSuggestionSelect = async (suggestion: any) => {
+        setSearchQuery(suggestion.address);
+        setShowSuggestions(false);
+        setSuggestions([]);
+
+        setSearching(true);
+        setIsMapReady(false);
+
+        try {
+            // Small delay to show loading state
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            const { latitude, longitude } = suggestion;
+
+            // Update marker first
+            setMarkerCoordinate({ latitude, longitude });
+
+            // Then update map region
+            setMapRegion({
+                latitude,
+                longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+            });
+
+            // Update address details
+            await updateLocationDetails(latitude, longitude);
+
+            // Small delay before showing map
+            await new Promise(resolve => setTimeout(resolve, 200));
+            setIsMapReady(true);
+        } catch (error) {
+            console.error('Error selecting suggestion:', error);
+        } finally {
+            setSearching(false);
+        }
+    };
+
     const handleMapPress = async (event: any) => {
         const { latitude, longitude } = event.nativeEvent.coordinate;
 
@@ -133,8 +235,18 @@ const AddAddress = () => {
         await updateLocationDetails(latitude, longitude);
     };
 
-    const handleRecenterMap = () => {
-        getCurrentLocation();
+    const handleRecenterMap = async () => {
+        // Clear search query
+        setSearchQuery('');
+        setSuggestions([]);
+        setShowSuggestions(false);
+
+        // Show loading state
+        setLoading(true);
+        setIsMapReady(false);
+
+        // Get current location
+        await getCurrentLocation();
     };
 
     const handleSearch = async () => {
@@ -144,12 +256,22 @@ const AddAddress = () => {
         }
 
         setSearching(true);
+        setIsMapReady(false);
+        setShowSuggestions(false);
+
         try {
+            // Small delay to show loading state
+            await new Promise(resolve => setTimeout(resolve, 300));
+
             const geocode = await Location.geocodeAsync(searchQuery);
 
             if (geocode.length > 0) {
                 const { latitude, longitude } = geocode[0];
 
+                // Update marker first
+                setMarkerCoordinate({ latitude, longitude });
+
+                // Then update map region
                 setMapRegion({
                     latitude,
                     longitude,
@@ -157,14 +279,19 @@ const AddAddress = () => {
                     longitudeDelta: 0.01,
                 });
 
-                setMarkerCoordinate({ latitude, longitude });
                 await updateLocationDetails(latitude, longitude);
+
+                // Small delay before showing map
+                await new Promise(resolve => setTimeout(resolve, 200));
+                setIsMapReady(true);
             } else {
                 Alert.alert('Not Found', 'Location not found. Please try a different search.');
+                setIsMapReady(true);
             }
         } catch (error) {
             console.error('Error searching location:', error);
             Alert.alert('Error', 'Failed to search location. Please try again.');
+            setIsMapReady(true);
         } finally {
             setSearching(false);
         }
@@ -225,54 +352,81 @@ const AddAddress = () => {
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
             >
-                {/* Title */}
-                <View style={styles.titleSection}>
-                    <Text style={[styles.title, { color: theme.text, fontFamily: Fonts.bold }]}>
-                        Where should we pick up?
-                    </Text>
-                    <Text style={[styles.subtitle, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                        Provide your location details for doorstep service
-                    </Text>
-                </View>
-
                 {/* Select Location on Map */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                        Select Location on Map
-                    </Text>
-
                     {/* Search Bar */}
-                    <View style={[styles.searchContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
-                        <Ionicons name="search-outline" size={20} color={theme.grey} />
-                        <TextInput
-                            style={[styles.searchInput, { color: theme.text, fontFamily: Fonts.regular }]}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                            placeholder="Search for a location"
-                            placeholderTextColor={theme.grey}
-                            returnKeyType="search"
-                            onSubmitEditing={handleSearch}
-                        />
-                        {searching ? (
-                            <ActivityIndicator size="small" color={theme.primary} />
-                        ) : (
-                            <TouchableOpacity onPress={handleSearch} disabled={!searchQuery.trim()}>
-                                <Ionicons
-                                    name="arrow-forward-circle"
-                                    size={24}
-                                    color={searchQuery.trim() ? theme.primary : theme.grey}
-                                />
-                            </TouchableOpacity>
+                    <View style={styles.searchWrapper}>
+                        <View style={[styles.searchContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                            <Ionicons name="search-outline" size={20} color={theme.grey} />
+                            <TextInput
+                                style={[styles.searchInput, { color: theme.text, fontFamily: Fonts.regular }]}
+                                value={searchQuery}
+                                onChangeText={(text) => {
+                                    setSearchQuery(text);
+                                    setShowSuggestions(true);
+                                }}
+                                placeholder="Search for a location"
+                                placeholderTextColor={theme.grey}
+                                returnKeyType="search"
+                                onSubmitEditing={handleSearch}
+                                onFocus={() => {
+                                    if (suggestions.length > 0) {
+                                        setShowSuggestions(true);
+                                    }
+                                }}
+                            />
+                            {searching ? (
+                                <ActivityIndicator size="small" color={theme.primary} />
+                            ) : (
+                                <TouchableOpacity onPress={handleSearch} disabled={!searchQuery.trim()}>
+                                    <Ionicons
+                                        name="arrow-forward-circle"
+                                        size={24}
+                                        color={searchQuery.trim() ? theme.primary : theme.grey}
+                                    />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <View style={[styles.suggestionsContainer, { backgroundColor: theme.background, borderColor: theme.border }]}>
+                                <ScrollView
+                                    keyboardShouldPersistTaps="handled"
+                                    showsVerticalScrollIndicator={false}
+                                    style={styles.suggestionsList}
+                                >
+                                    {suggestions.map((suggestion, index) => (
+                                        <TouchableOpacity
+                                            key={index}
+                                            style={[
+                                                styles.suggestionItem,
+                                                { borderBottomColor: theme.border },
+                                                index === suggestions.length - 1 && styles.lastSuggestion
+                                            ]}
+                                            onPress={() => handleSuggestionSelect(suggestion)}
+                                        >
+                                            <Ionicons name="location-outline" size={18} color={theme.grey} />
+                                            <Text
+                                                style={[styles.suggestionText, { color: theme.text, fontFamily: Fonts.regular }]}
+                                                numberOfLines={2}
+                                            >
+                                                {suggestion.address}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
                         )}
                     </View>
 
                     {/* Map View */}
                     <View style={styles.mapContainer}>
-                        {loading ? (
+                        {loading || (searching && !isMapReady) ? (
                             <View style={[styles.mapLoadingContainer, { backgroundColor: theme.lightGrey }]}>
                                 <ActivityIndicator size="large" color={theme.primary} />
                                 <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                    Loading map...
+                                    {loading ? 'Loading map...' : 'Searching location...'}
                                 </Text>
                             </View>
                         ) : (
@@ -285,6 +439,11 @@ const AddAddress = () => {
                                     showsUserLocation={true}
                                     showsMyLocationButton={false}
                                     provider={PROVIDER_DEFAULT}
+                                    onMapReady={() => setIsMapReady(true)}
+                                    loadingEnabled={true}
+                                    loadingIndicatorColor={theme.primary}
+                                    moveOnMarkerPress={false}
+                                    pitchEnabled={false}
                                 >
                                     <Marker
                                         coordinate={markerCoordinate}
@@ -556,6 +715,11 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
+    searchWrapper: {
+        position: 'relative',
+        zIndex: 10,
+        marginBottom: 12,
+    },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -564,12 +728,45 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderWidth: 1,
         gap: 12,
-        marginBottom: 12,
     },
     searchInput: {
         flex: 1,
         fontSize: 14,
         paddingVertical: 0,
+    },
+    suggestionsContainer: {
+        position: 'absolute',
+        top: 56,
+        left: 0,
+        right: 0,
+        maxHeight: 200,
+        borderRadius: 12,
+        borderWidth: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 5,
+        overflow: 'hidden',
+    },
+    suggestionsList: {
+        flex: 1,
+    },
+    suggestionItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 12,
+        borderBottomWidth: 1,
+    },
+    lastSuggestion: {
+        borderBottomWidth: 0,
+    },
+    suggestionText: {
+        flex: 1,
+        fontSize: 13,
+        lineHeight: 18,
     },
     mapContainer: {
         height: 250,

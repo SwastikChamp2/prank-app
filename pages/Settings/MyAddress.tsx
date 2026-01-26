@@ -1,5 +1,5 @@
 // pages/MyAddress.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -7,13 +7,9 @@ import {
     TouchableOpacity,
     ScrollView,
     useColorScheme,
-    Alert,
-    ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
-import * as Location from 'expo-location';
 import { Colors, Fonts } from '../../constants/theme';
 
 interface Address {
@@ -29,18 +25,6 @@ const MyAddress = () => {
     const router = useRouter();
 
     const [selectedAddressId, setSelectedAddressId] = useState('1');
-    const [currentLocation, setCurrentLocation] = useState('Fetching location...');
-    const [mapRegion, setMapRegion] = useState({
-        latitude: 19.2183,
-        longitude: 72.9781,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-    });
-    const [markerCoordinate, setMarkerCoordinate] = useState({
-        latitude: 19.2183,
-        longitude: 72.9781,
-    });
-    const [loading, setLoading] = useState(true);
 
     const addresses: Address[] = [
         {
@@ -62,89 +46,6 @@ const MyAddress = () => {
             city: 'Waghbil, Thane',
         },
     ];
-
-    useEffect(() => {
-        getCurrentLocation();
-    }, []);
-
-    const getCurrentLocation = async () => {
-        try {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-
-            if (status !== 'granted') {
-                Alert.alert(
-                    'Permission Denied',
-                    'Please enable location permissions to use this feature.',
-                    [{ text: 'OK' }]
-                );
-                setLoading(false);
-                setCurrentLocation('Location permission denied');
-                return;
-            }
-
-            const location = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High,
-            });
-
-            const { latitude, longitude } = location.coords;
-
-            // Reverse geocode to get address
-            const reverseGeocode = await Location.reverseGeocodeAsync({
-                latitude,
-                longitude,
-            });
-
-            if (reverseGeocode.length > 0) {
-                const address = reverseGeocode[0];
-                const locationName = `${address.name || address.street || ''}, ${address.city || address.region || ''}`.trim();
-                setCurrentLocation(locationName || 'Location found');
-            }
-
-            setMapRegion({
-                latitude,
-                longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-            });
-
-            setMarkerCoordinate({
-                latitude,
-                longitude,
-            });
-
-            setLoading(false);
-        } catch (error) {
-            console.error('Error getting location:', error);
-            Alert.alert('Error', 'Failed to get current location');
-            setLoading(false);
-            setCurrentLocation('Unable to fetch location');
-        }
-    };
-
-    const handleMapPress = async (event: any) => {
-        const { latitude, longitude } = event.nativeEvent.coordinate;
-
-        setMarkerCoordinate({ latitude, longitude });
-
-        try {
-            const reverseGeocode = await Location.reverseGeocodeAsync({
-                latitude,
-                longitude,
-            });
-
-            if (reverseGeocode.length > 0) {
-                const address = reverseGeocode[0];
-                const locationName = `${address.name || address.street || ''}, ${address.city || address.region || ''}`.trim();
-                setCurrentLocation(locationName || 'Location selected');
-            }
-        } catch (error) {
-            console.error('Error reverse geocoding:', error);
-        }
-    };
-
-    const handleRecenterMap = () => {
-        getCurrentLocation();
-    };
 
     const handleBack = () => {
         router.back();
@@ -182,70 +83,6 @@ const MyAddress = () => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
             >
-                {/* Current Location Section */}
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
-                        Current Location
-                    </Text>
-                </View>
-
-                {/* Current Location Display */}
-                <View style={styles.locationDisplayContainer}>
-                    <View style={[styles.locationDisplay, { backgroundColor: theme.lightGrey, borderColor: theme.border }]}>
-                        <Ionicons name="location" size={24} color={theme.primary} />
-                        {loading ? (
-                            <ActivityIndicator size="small" color={theme.primary} />
-                        ) : (
-                            <Text style={[styles.locationText, { color: theme.text, fontFamily: Fonts.medium }]}>
-                                {currentLocation}
-                            </Text>
-                        )}
-                    </View>
-                </View>
-
-                {/* Map View */}
-                <View style={styles.mapContainer}>
-                    {loading ? (
-                        <View style={[styles.mapLoadingContainer, { backgroundColor: theme.lightGrey }]}>
-                            <ActivityIndicator size="large" color={theme.primary} />
-                            <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                Loading map...
-                            </Text>
-                        </View>
-                    ) : (
-                        <>
-                            <MapView
-                                style={styles.map}
-                                region={mapRegion}
-                                onPress={handleMapPress}
-                                onRegionChangeComplete={setMapRegion}
-                                showsUserLocation={true}
-                                showsMyLocationButton={false}
-                                provider={PROVIDER_DEFAULT}
-                            >
-                                <Marker
-                                    coordinate={markerCoordinate}
-                                    draggable
-                                    onDragEnd={handleMapPress}
-                                >
-                                    <View style={styles.customMarker}>
-                                        <Ionicons name="location" size={40} color={theme.primary} />
-                                    </View>
-                                </Marker>
-                            </MapView>
-
-                            {/* Recenter Button */}
-                            <TouchableOpacity
-                                style={[styles.recenterButton, { backgroundColor: theme.background }]}
-                                onPress={handleRecenterMap}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons name="locate" size={24} color={theme.primary} />
-                            </TouchableOpacity>
-                        </>
-                    )}
-                </View>
-
                 {/* Select Location Section */}
                 <View style={styles.section}>
                     <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
@@ -347,61 +184,6 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '700',
         marginBottom: 8,
-    },
-    locationDisplayContainer: {
-        marginBottom: 16,
-    },
-    locationDisplay: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderRadius: 12,
-        borderWidth: 1,
-        gap: 12,
-    },
-    locationText: {
-        flex: 1,
-        fontSize: 15,
-    },
-    mapContainer: {
-        height: 250,
-        borderRadius: 16,
-        overflow: 'hidden',
-        marginBottom: 24,
-        position: 'relative',
-    },
-    map: {
-        flex: 1,
-    },
-    mapLoadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 16,
-    },
-    loadingText: {
-        marginTop: 8,
-        fontSize: 14,
-    },
-    customMarker: {
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    recenterButton: {
-        position: 'absolute',
-        bottom: 16,
-        right: 16,
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        elevation: 5,
     },
     addressList: {
         gap: 12,
