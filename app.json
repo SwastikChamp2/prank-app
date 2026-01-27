@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "HelmetWasherApp",
-    "slug": "HelmetWasherApp",
+    "name": "PrankApp",
+    "slug": "PrankApp",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "helmetwasherapp",
+    "scheme": "PrankApp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,17 +15,17 @@
     "icon": "./assets/images/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.adarshnambiar.HelmetWasherApp",
+      "bundleIdentifier": "com.adarshnambiar.PrankApp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "HelmetWasherApp needs your location to show nearby services and save your addresses.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "HelmetWasherApp needs your location to show nearby services and save your addresses."
+        "NSLocationWhenInUseUsageDescription": "PrankApp needs your location to show nearby services and save your addresses.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "PrankApp needs your location to show nearby services and save your addresses."
       }
     },
     "android": {
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.adarshnambiar.HelmetWasherApp",
+      "package": "com.adarshnambiar.PrankApp",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -44,7 +44,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow HelmetWasherApp to use your location to show nearby services and save your addresses."
+          "locationAlwaysAndWhenInUsePermission": "Allow PrankApp to use your location to show nearby services and save your addresses."
         }
       ]
     ],

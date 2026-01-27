@@ -33,6 +33,8 @@ export const verifyOTP = async (
         const result = await confirmationResult.confirm(otp);
         const user = result.user;
 
+        console.log('OTP verified successfully for user:', user.uid);
+
         return user;
     } catch (error) {
         console.error('Error verifying OTP:', error);
@@ -83,13 +85,10 @@ const generateReferralCode = (): string => {
 
 export const signOutUser = async () => {
     try {
-        // Sign out from Firebase
-        await auth.signOut();
+        console.log('Signing out user...');
 
-        // Clear AsyncStorage - remove all persistence data
-        await AsyncStorage.removeItem('userToken');
-        await AsyncStorage.removeItem('persistLogin');
-        await AsyncStorage.removeItem('lastLoginPhone');
+        // Sign out from Firebase - this will automatically clear AsyncStorage
+        await auth.signOut();
 
         // Clear any global state
         (global as any).confirmationResult = null;

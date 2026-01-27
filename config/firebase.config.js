@@ -1,11 +1,9 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
-// Replace with your Firebase config from Firebase Console
 const firebaseConfig = {
     apiKey: "AIzaSyC3YQpcvTOIPNbcjzQQDIaTQBTMd1pI7G8",
     authDomain: "dont-take-crap-app.firebaseapp.com",
@@ -19,15 +17,10 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Auth with AsyncStorage persistence
-let auth;
-if (Platform.OS === 'web') {
-    auth = getAuth(app);
-} else {
-    auth = initializeAuth(app, {
-        persistence: getReactNativePersistence(AsyncStorage)
-    });
-}
+// Initialize Auth with AsyncStorage persistence for React Native
+const auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage)
+});
 
 const db = getFirestore(app);
 const storage = getStorage(app);

@@ -24,6 +24,7 @@ const AddAddress = () => {
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
 
+    const [addressLabel, setAddressLabel] = useState('');
     const [buildingName, setBuildingName] = useState('');
     const [streetName, setStreetName] = useState('');
     const [pincode, setPincode] = useState('');
@@ -303,6 +304,7 @@ const AddAddress = () => {
 
     const isFormValid = () => {
         return (
+            addressLabel.trim() !== '' &&
             buildingName.trim() !== '' &&
             streetName.trim() !== '' &&
             pincode.trim() !== '' &&
@@ -317,6 +319,7 @@ const AddAddress = () => {
     const handleConfirm = () => {
         if (isFormValid()) {
             console.log('Address saved:', {
+                addressLabel,
                 buildingName,
                 streetName,
                 pincode,
@@ -487,6 +490,25 @@ const AddAddress = () => {
                             Address Details
                         </Text>
                     </View>
+
+                    <View style={styles.fullWidthInputContainer}>
+                        <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                            Address Label
+                        </Text>
+                        <TextInput
+                            style={[styles.input, {
+                                backgroundColor: theme.background,
+                                borderColor: theme.border,
+                                color: theme.text,
+                                fontFamily: Fonts.regular,
+                            }]}
+                            value={addressLabel}
+                            onChangeText={setAddressLabel}
+                            placeholder="Home / Work / Other"
+                            placeholderTextColor={theme.grey}
+                        />
+                    </View>
+
 
                     <View style={styles.inputRow}>
                         <View style={styles.inputContainer}>

@@ -207,8 +207,10 @@ const VerifyOTP = () => {
         throw new Error('No confirmation result found. Please try again.');
       }
 
-      // Verify OTP
+      // Verify OTP - Firebase will automatically persist the session
       const user = await verifyOTP(confirmationResult, enteredOtp);
+
+      console.log('User verified:', user.uid);
 
       // Create or update user in Firestore
       const usernameToSave = isSignup === 'true'
@@ -216,9 +218,6 @@ const VerifyOTP = () => {
         : undefined;
 
       await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave);
-
-      // Enable persistent login so user stays logged in
-      await enablePersistentLogin(`+91${phoneNumber}`);
 
       // Clear global data
       (global as any).confirmationResult = null;
@@ -280,7 +279,8 @@ const VerifyOTP = () => {
 
   const handleStartGifting = () => {
     setShowSuccessModal(false);
-    // Navigate to home or main app screen
+    // The AuthContext will automatically navigate to home
+    // But we can explicitly navigate as well for immediate response
     router.replace('/home');
   };
 
