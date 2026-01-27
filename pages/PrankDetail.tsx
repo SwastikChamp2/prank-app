@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,26 +8,55 @@ import {
     Image,
     useColorScheme,
     StatusBar,
-    Dimensions
+    Dimensions,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Fonts } from '../constants/theme';
+import { fetchPrankById, Prank } from '../services/PrankService';
+import { fetchBoxById } from '../services/BoxService';
+import { fetchWrapById } from '../services/WrapService';
+import { updateCartItem } from '../services/CartService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const PrankDetail: React.FC = () => {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const prankId = params.prankId as string;
+
     const [quantity, setQuantity] = useState<number>(1);
     const [showFullDescription, setShowFullDescription] = useState<boolean>(false);
+    const [isDescriptionLong, setIsDescriptionLong] = useState<boolean>(false);
+    const [prank, setPrank] = useState<Prank | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
-    const product = {
-        name: 'Spider in a Box Prank',
-        price: 399,
-        image: 'https://m.media-amazon.com/images/I/61OBZpDybhL.jpg',
-        description: 'Surprise and delight with this classic Spider in a Box Prank! Open the box and—boom—a realistic spider pops out to deliver a harmless scare and lots of laughs. Perfect for pranks, parties, and gag gifts, office parties, birthdays and more'
+    useEffect(() => {
+        loadPrankDetail();
+    }, [prankId]);
+
+    const loadPrankDetail = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            if (prankId) {
+                const fetchedPrank = await fetchPrankById(prankId);
+                if (fetchedPrank) {
+                    setPrank(fetchedPrank);
+                } else {
+                    setError('Prank not found');
+                }
+            }
+        } catch (err) {
+            console.error('Error loading prank detail:', err);
+            setError('Failed to load prank details');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const incrementQuantity = () => {
@@ -40,113 +69,146 @@ const PrankDetail: React.FC = () => {
         }
     };
 
+    const handleSelectPrank = () => {
+        if (prank) {
+            // Store prank details in route params for SelectBox page
+            router.push({
+                pathname: '/select-box',
+                params: {
+                    prankId: prank.id,
+                    prankTitle: prank.prankTitle,
+                    prankPrice: prank.price.toString(),
+                    prankImage: prank.coverImage,
+                    quantity: quantity.toString(),
+                },
+            });
+        }
+    };
+
+    useEffect(() => {
+        // Check if description is long based on character count
+        if (prank && prank.prankDescription.length > 300) {
+            setIsDescriptionLong(true);
+        } else {
+            setIsDescriptionLong(false);
+        }
+    }, [prank]);
+
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} />
 
-            {/* Header with Image */}
-            <View style={styles.imageSection}>
-                <Image
-                    source={{ uri: product.image }}
-                    style={styles.productImage}
-                    resizeMode="cover"
-                />
+            {/* Loading State */}
+            {loading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                        Loading prank details...
+                    </Text>
+                </View>
+            )}
 
-                {/* Header Overlay */}
-                <View style={styles.headerOverlay}>
+            {/* Error State */}
+            {error && !loading && (
+                <View style={styles.errorContainer}>
+                    <Text style={[styles.errorText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                        {error}
+                    </Text>
                     <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => router.back()}
+                        style={[styles.retryButton, { backgroundColor: theme.primary }]}
+                        onPress={loadPrankDetail}
                     >
-                        <Ionicons name="chevron-back" size={24} color="#000" />
-                    </TouchableOpacity>
-
-                    <Text style={styles.headerTitle}>Detail Product</Text>
-
-                    <TouchableOpacity style={styles.cartButton} onPress={() => router.push('/cart')}>
-                        <Ionicons name="bag-outline" size={24} color="#000" />
+                        <Text style={[styles.retryButtonText, { fontFamily: Fonts.semiBold }]}>
+                            Retry
+                        </Text>
                     </TouchableOpacity>
                 </View>
-            </View>
+            )}
 
-            {/* Content Section */}
-            <ScrollView
-                style={styles.contentSection}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.contentContainer}>
-                    {/* Product Title */}
-                    <Text style={[styles.productTitle, { color: theme.text }]}>
-                        {product.name}
-                    </Text>
+            {/* Content */}
+            {!loading && !error && prank && (
+                <>
+                    {/* Header with Image */}
+                    <View style={styles.imageSection}>
+                        <Image
+                            source={{ uri: prank.coverImage }}
+                            style={styles.productImage}
+                            resizeMode="cover"
+                        />
 
-                    {/* Description */}
-                    <Text
-                        style={[styles.description, { color: theme.grey }]}
-                        numberOfLines={showFullDescription ? undefined : 4}
-                    >
-                        {product.description}
-                    </Text>
-
-                    {/* Read More Button */}
-                    <TouchableOpacity
-                        onPress={() => setShowFullDescription(!showFullDescription)}
-                        style={styles.readMoreButton}
-                    >
-                        <Text style={[styles.readMoreText, { color: theme.primary }]}>
-                            {showFullDescription ? 'Read Less' : 'Read More'}
-                        </Text>
-                    </TouchableOpacity>
-
-                    {/* Quantity Selector */}
-                    <View style={styles.quantitySection}>
-                        <Text style={[styles.quantityLabel, { color: theme.text }]}>
-                            Choose amount :
-                        </Text>
-
-                        <View style={styles.quantityControls}>
+                        {/* Header Overlay */}
+                        <View style={styles.headerOverlay}>
                             <TouchableOpacity
-                                style={[styles.quantityButton, { backgroundColor: theme.lightOrange }]}
-                                onPress={decrementQuantity}
+                                style={styles.backButton}
+                                onPress={() => router.back()}
                             >
-                                <Ionicons name="remove" size={20} color={theme.primary} />
+                                <Ionicons name="chevron-back" size={24} color="#000" />
                             </TouchableOpacity>
 
-                            <Text style={[styles.quantityValue, { color: theme.text }]}>
-                                {quantity}
-                            </Text>
+                            <Text style={styles.headerTitle}>Detail Product</Text>
 
-                            <TouchableOpacity
-                                style={[styles.quantityButton, { backgroundColor: theme.primary }]}
-                                onPress={incrementQuantity}
-                            >
-                                <Ionicons name="add" size={20} color={theme.white} />
+                            <TouchableOpacity style={styles.cartButton} onPress={() => router.push('/cart')}>
+                                <Ionicons name="bag-outline" size={24} color="#000" />
                             </TouchableOpacity>
                         </View>
                     </View>
 
-                    {/* Bottom Section with Price and Button */}
-                    <View style={styles.bottomSection}>
-                        <View style={styles.priceSection}>
-                            <Text style={[styles.priceLabel, { color: theme.grey }]}>
-                                Price
-                            </Text>
-                            <Text style={[styles.priceValue, { color: theme.text }]}>
-                                ₹ {product.price}
-                            </Text>
-                        </View>
-
-                        <TouchableOpacity
-                            style={[styles.selectButton, { backgroundColor: theme.primary }]}
-                            onPress={() => router.push('/select-box')}
+                    {/* Content Section */}
+                    <View style={styles.contentSection}>
+                        <ScrollView
+                            style={styles.scrollView}
+                            contentContainerStyle={styles.scrollViewContent}
+                            showsVerticalScrollIndicator={false}
                         >
-                            <Text style={styles.selectButtonText}>
-                                Select Prank
+                            {/* Product Title */}
+                            <Text style={[styles.productTitle, { color: theme.text }]}>
+                                {prank.prankTitle}
                             </Text>
-                        </TouchableOpacity>
+
+                            {/* Description */}
+                            <Text
+                                style={[styles.description, { color: theme.grey }]}
+                                numberOfLines={showFullDescription ? undefined : 4}
+                            >
+                                {prank.prankDescription}
+                            </Text>
+
+                            {/* Read More Button - Only show if description is long */}
+                            {isDescriptionLong && (
+                                <TouchableOpacity
+                                    onPress={() => setShowFullDescription(!showFullDescription)}
+                                    style={styles.readMoreButton}
+                                >
+                                    <Text style={[styles.readMoreText, { color: theme.primary }]}>
+                                        {showFullDescription ? 'Read Less' : 'Read More'}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                        </ScrollView>
+
+                        {/* Bottom Section with Price and Button - Fixed at bottom */}
+                        <View style={styles.bottomSection}>
+                            <View style={styles.priceSection}>
+                                <Text style={[styles.priceLabel, { color: theme.grey }]}>
+                                    Price
+                                </Text>
+                                <Text style={[styles.priceValue, { color: theme.text }]}>
+                                    ₹ {prank.price}
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity
+                                style={[styles.selectButton, { backgroundColor: theme.primary }]}
+                                onPress={handleSelectPrank}
+                            >
+                                <Text style={styles.selectButtonText}>
+                                    Select Prank
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            </ScrollView>
+                </>
+            )}
         </View>
     );
 };
@@ -154,6 +216,36 @@ const PrankDetail: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        fontSize: 14,
+        marginTop: 12,
+    },
+    errorContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingVertical: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    retryButton: {
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
     },
     imageSection: {
         width: SCREEN_WIDTH,
@@ -204,8 +296,13 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 30,
         backgroundColor: '#FFFFFF',
     },
-    contentContainer: {
-        padding: 24,
+    scrollView: {
+        flex: 1,
+    },
+    scrollViewContent: {
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 24,
     },
     productTitle: {
         fontSize: 28,
@@ -227,39 +324,15 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: Fonts.semiBold,
     },
-    quantitySection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 32,
-    },
-    quantityLabel: {
-        fontSize: 16,
-        fontFamily: Fonts.semiBold,
-    },
-    quantityControls: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-    },
-    quantityButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    quantityValue: {
-        fontSize: 18,
-        fontFamily: Fonts.semiBold,
-        minWidth: 30,
-        textAlign: 'center',
-    },
     bottomSection: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: 8,
+        paddingHorizontal: 24,
+        paddingVertical: 24,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+        backgroundColor: '#FFFFFF',
     },
     priceSection: {
         flex: 1,

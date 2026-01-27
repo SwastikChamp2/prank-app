@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,16 +8,18 @@ import {
     TouchableOpacity,
     Image,
     useColorScheme,
-    StatusBar
+    StatusBar,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Footer from '../components/Footer/Footer';
 import { Colors, Fonts } from '../constants/theme';
+import { fetchAllBoxes, BoxCard } from '../services/BoxService';
 
 // Box Card Component
 type BoxCardProps = {
-    id: number;
+    id: string;
     name: string;
     price: string | null;
     image: string;
@@ -26,7 +28,7 @@ type BoxCardProps = {
     onPress: () => void;
 };
 
-const BoxCard: React.FC<BoxCardProps> = ({ name, price, image, theme, isSelected, onPress }) => {
+const BoxCardComponent: React.FC<BoxCardProps> = ({ name, price, image, theme, isSelected, onPress }) => {
     return (
         <TouchableOpacity
             style={[
@@ -62,47 +64,109 @@ const BoxCard: React.FC<BoxCardProps> = ({ name, price, image, theme, isSelected
 // Main Select Box Screen
 const SelectBox: React.FC = () => {
     const router = useRouter();
+    const params = useLocalSearchParams();
+
+    // Get prank data from params
+    const prankId = params.prankId as string;
+    const prankTitle = params.prankTitle as string;
+    const prankPrice = params.prankPrice as string;
+    const prankImage = params.prankImage as string;
+    const quantity = params.quantity as string;
+
     const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'cart' | 'profile'>('home');
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
-    const [selectedBoxId, setSelectedBoxId] = useState<number | null>(1);
+    const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+    const [selectedBoxName, setSelectedBoxName] = useState<string>('');
+    const [selectedBoxPrice, setSelectedBoxPrice] = useState<string | null>(null);
+    const [selectedBoxImage, setSelectedBoxImage] = useState<string>('');
+    const [boxes, setBoxes] = useState<BoxCard[]>([]);
+    const [filteredBoxes, setFilteredBoxes] = useState<BoxCard[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
     const categories = ['All', 'Latest', 'Most Popular', 'Cheapest'];
 
-    const boxes = [
-        {
-            id: 1,
-            name: 'Simple Carboard Box',
-            price: null,
-            image: 'https://i.etsystatic.com/24039383/r/il/98e077/2404078216/il_fullxfull.2404078216_tc34.jpg'
-        },
-        {
-            id: 2,
-            name: 'Quirky Box',
-            price: '99',
-            image: 'https://5.imimg.com/data5/SELLER/Default/2020/8/VI/NX/NC/102975132/mdf-box-500x500.jpg'
-        },
-        {
-            id: 3,
-            name: 'Premium Box',
-            price: '199',
-            image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400'
-        },
-        {
-            id: 4,
-            name: 'Luxury Box',
-            price: '299',
-            image: 'https://unboxit.in/cdn/shop/files/Category2_8068639f-e39a-479d-8e2f-390170249874.jpg?v=1749480436&width=2000'
-        },
-    ];
+    useEffect(() => {
+        loadBoxes();
+    }, []);
+
+    useEffect(() => {
+        filterBoxes();
+    }, [boxes, selectedCategory]);
+
+    const loadBoxes = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const fetchedBoxes = await fetchAllBoxes();
+            // Sort by price: cheapest first
+            const sortedBoxes = [...fetchedBoxes].sort((a, b) => {
+                const priceA = a.price ? parseInt(a.price) : 0;
+                const priceB = b.price ? parseInt(b.price) : 0;
+                return priceA - priceB;
+            });
+            setBoxes(sortedBoxes);
+            // Select the cheapest box by default
+            if (sortedBoxes.length > 0) {
+                setSelectedBoxId(sortedBoxes[0].id);
+                setSelectedBoxName(sortedBoxes[0].name);
+                setSelectedBoxPrice(sortedBoxes[0].price);
+                setSelectedBoxImage(sortedBoxes[0].image);
+            }
+        } catch (err) {
+            console.error('Error loading boxes:', err);
+            setError('Failed to load boxes. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filterBoxes = () => {
+        if (selectedCategory === 'All') {
+            setFilteredBoxes(boxes);
+        } else if (selectedCategory === 'Latest') {
+            setFilteredBoxes([...boxes].reverse());
+        } else if (selectedCategory === 'Most Popular') {
+            setFilteredBoxes(boxes);
+        } else if (selectedCategory === 'Cheapest') {
+            setFilteredBoxes(
+                [...boxes].sort((a, b) => {
+                    const priceA = a.price ? parseInt(a.price) : 0;
+                    const priceB = b.price ? parseInt(b.price) : 0;
+                    return priceA - priceB;
+                })
+            );
+        }
+    };
 
     const handleTabPress = (tab: string) => {
         setActiveTab(tab as 'home' | 'orders' | 'cart' | 'profile');
     };
 
-    const handleBoxSelect = (boxId: number) => {
+    const handleBoxSelect = (boxId: string, boxName: string, boxPrice: string | null, boxImage: string) => {
         setSelectedBoxId(boxId);
+        setSelectedBoxName(boxName);
+        setSelectedBoxPrice(boxPrice);
+        setSelectedBoxImage(boxImage);
+    };
+
+    const handleNavigateToWrap = () => {
+        router.push({
+            pathname: '/select-wrap',
+            params: {
+                prankId,
+                prankTitle,
+                prankPrice,
+                prankImage,
+                quantity,
+                boxId: selectedBoxId,
+                boxTitle: selectedBoxName,
+                boxPrice: selectedBoxPrice || '0',
+                boxImage: selectedBoxImage,
+            },
+        });
     };
 
     return (
@@ -163,36 +227,75 @@ const SelectBox: React.FC = () => {
                 </ScrollView>
             </View>
 
-            {/* Boxes Grid */}
-            <ScrollView
-                style={styles.boxesContainer}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.boxesGrid}>
-                    {boxes.map((box) => (
-                        <BoxCard
-                            key={box.id}
-                            id={box.id}
-                            name={box.name}
-                            price={box.price}
-                            image={box.image}
-                            theme={theme}
-                            isSelected={selectedBoxId === box.id}
-                            onPress={() => handleBoxSelect(box.id)}
-                        />
-                    ))}
+            {/* Loading State */}
+            {loading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                        Loading boxes...
+                    </Text>
                 </View>
+            )}
 
-                {/* Select Box Button */}
-                <View style={styles.buttonContainer}>
+            {/* Error State */}
+            {error && !loading && (
+                <View style={styles.errorContainer}>
+                    <Text style={[styles.errorText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                        {error}
+                    </Text>
                     <TouchableOpacity
-                        style={[styles.selectButton, { backgroundColor: theme.primary }]}
-                        onPress={() => router.push('/select-wrap')}
+                        style={[styles.retryButton, { backgroundColor: theme.primary }]}
+                        onPress={loadBoxes}
                     >
-                        <Text style={styles.selectButtonText}>Select Box</Text>
+                        <Text style={[styles.retryButtonText, { fontFamily: Fonts.semiBold }]}>
+                            Retry
+                        </Text>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
+            )}
+
+            {/* Boxes Grid */}
+            {!loading && !error && (
+                <ScrollView
+                    style={styles.boxesContainer}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {filteredBoxes.length > 0 ? (
+                        <>
+                            <View style={styles.boxesGrid}>
+                                {filteredBoxes.map((box) => (
+                                    <BoxCardComponent
+                                        key={box.id}
+                                        id={box.id}
+                                        name={box.name}
+                                        price={box.price}
+                                        image={box.image}
+                                        theme={theme}
+                                        isSelected={selectedBoxId === box.id}
+                                        onPress={() => handleBoxSelect(box.id, box.name, box.price, box.image)}
+                                    />
+                                ))}
+                            </View>
+
+                            {/* Select Box Button */}
+                            <View style={styles.buttonContainer}>
+                                <TouchableOpacity
+                                    style={[styles.selectButton, { backgroundColor: theme.primary }]}
+                                    onPress={handleNavigateToWrap}
+                                >
+                                    <Text style={styles.selectButtonText}>Select Box</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Text style={[styles.emptyText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                No boxes found
+                            </Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
 
             {/* Footer */}
             <Footer />
@@ -265,6 +368,45 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        fontSize: 14,
+        marginTop: 12,
+    },
+    errorContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingVertical: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    retryButton: {
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 100,
+    },
+    emptyText: {
+        fontSize: 16,
     },
     boxCard: {
         width: '48%',

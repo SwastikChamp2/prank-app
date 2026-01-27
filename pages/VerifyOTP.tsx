@@ -16,7 +16,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
-import { verifyOTP, createOrUpdateUser } from '../services/AuthServices';
+import { verifyOTP, createOrUpdateUser, enablePersistentLogin } from '../services/AuthServices';
 import { auth } from '../config/firebase.config';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { signInWithPhoneNumber } from 'firebase/auth';
@@ -216,6 +216,9 @@ const VerifyOTP = () => {
         : undefined;
 
       await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave);
+
+      // Enable persistent login so user stays logged in
+      await enablePersistentLogin(`+91${phoneNumber}`);
 
       // Clear global data
       (global as any).confirmationResult = null;

@@ -1,5 +1,5 @@
 // pages/Home.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,11 +9,13 @@ import {
   Dimensions,
   useColorScheme,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import Footer from '@/components/Footer/Footer';
+import { fetchPrankCategories } from '../services/PrankCategoryService';
 
 const { width } = Dimensions.get('window');
 
@@ -21,57 +23,45 @@ interface CategoryCard {
   id: string;
   title: string;
   count: string;
-  backgroundColor: string;
-  imageUrl: any;
+  imageUrl: string;
 }
 
 const Home = () => {
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const router = useRouter();
+  const [categories, setCategories] = useState<CategoryCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const categories: CategoryCard[] = [
-    {
-      id: '1',
-      title: 'Fun Pranks',
-      count: '18 Pranks',
-      backgroundColor: '#E8A67D',
-      imageUrl: require('../assets/images/Home/fun-pranks.png'),
-    },
-    {
-      id: '2',
-      title: 'Scary Pranks',
-      count: '12 Pranks',
-      backgroundColor: '#7FB899',
-      imageUrl: require('../assets/images/Home/scary-pranks.png'),
-    },
-    {
-      id: '3',
-      title: 'Naughty Pranks',
-      count: '8 Pranks',
-      backgroundColor: '#E8A67D',
-      imageUrl: require('../assets/images/Home/naughty-pranks.png'),
-    },
-    {
-      id: '4',
-      title: 'Shocking Pranks',
-      count: '155 Pranks',
-      backgroundColor: '#D1D1D1',
-      imageUrl: require('../assets/images/Home/shocking-pranks.png'),
-    },
-    {
-      id: '5',
-      title: 'Other Pranks',
-      count: '5 Pranks',
-      backgroundColor: '#E8E8E8',
-      imageUrl: require('../assets/images/Home/other-pranks.png'),
-    },
-  ];
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
-  const handleCategoryPress = (categoryId: string) => {
-    console.log('Category pressed:', categoryId);
-    // Navigate to category details
-    router.push('/select-prank');
+  const loadCategories = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const fetchedCategories = await fetchPrankCategories();
+      setCategories(fetchedCategories);
+    } catch (err) {
+      console.error('Error loading categories:', err);
+      setError('Failed to load categories. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getBackgroundColor = (index: number) => {
+    const colors = ['#E8A67D', '#7FB899', '#E8A67D', '#D1D1D1', '#E8E8E8'];
+    return colors[index % colors.length];
+  };
+
+  const handleCategoryPress = (categoryTitle: string) => {
+    router.push({
+      pathname: '/select-prank',
+      params: { category: categoryTitle },
+    });
   };
 
   return (
@@ -93,9 +83,6 @@ const Home = () => {
         </View>
       </View>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-
-
         {/* Title */}
         <View style={styles.titleContainer}>
           <Text style={[styles.title, { color: theme.text, fontFamily: Fonts.bold }]}>
@@ -103,31 +90,72 @@ const Home = () => {
           </Text>
         </View>
 
-        {/* Category Cards */}
-        <View style={styles.categoriesContainer}>
-          {categories.map((category) => (
+        {/* Loading State */}
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.primary} />
+            <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+              Loading categories...
+            </Text>
+          </View>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <View style={styles.errorContainer}>
+            <Text style={[styles.errorText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+              {error}
+            </Text>
             <TouchableOpacity
-              key={category.id}
-              style={[styles.categoryCard, { backgroundColor: category.backgroundColor }]}
-              activeOpacity={0.8}
-              onPress={() => handleCategoryPress(category.id)}
+              style={[styles.retryButton, { backgroundColor: theme.primary }]}
+              onPress={loadCategories}
             >
-              <Image
-                source={category.imageUrl}
-                style={styles.categoryImage}
-                resizeMode="cover"
-              />
-              <View style={styles.categoryContent}>
-                <Text style={[styles.categoryTitle, { fontFamily: Fonts.semiBold }]}>
-                  {category.title}
-                </Text>
-                <Text style={[styles.categoryCount, { fontFamily: Fonts.regular }]}>
-                  {category.count}
-                </Text>
-              </View>
+              <Text style={[styles.retryButtonText, { fontFamily: Fonts.semiBold }]}>
+                Retry
+              </Text>
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        )}
+
+        {/* Category Cards */}
+        {!loading && categories.length > 0 && (
+          <View style={styles.categoriesContainer}>
+            {categories.map((category, index) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryCard,
+                  { backgroundColor: getBackgroundColor(index) },
+                ]}
+                activeOpacity={0.8}
+                onPress={() => handleCategoryPress(category.title)}
+              >
+                <Image
+                  source={{ uri: category.imageUrl }}
+                  style={styles.categoryImage}
+                  resizeMode="cover"
+                />
+                <View style={styles.categoryContent}>
+                  <Text style={[styles.categoryTitle, { fontFamily: Fonts.semiBold }]}>
+                    {category.title}
+                  </Text>
+                  <Text style={[styles.categoryCount, { fontFamily: Fonts.regular }]}>
+                    {category.count}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Empty State */}
+        {!loading && categories.length === 0 && !error && (
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+              No categories available
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Bottom Footer */}
@@ -214,6 +242,42 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     zIndex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  loadingText: {
+    fontSize: 14,
+    marginTop: 12,
+  },
+  errorContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  emptyContainer: {
+    paddingVertical: 100,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
   },
   bottomNav: {
     position: 'absolute',

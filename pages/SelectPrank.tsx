@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,29 +8,33 @@ import {
     TouchableOpacity,
     Image,
     useColorScheme,
-    StatusBar
+    StatusBar,
+    ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Footer from '../components/Footer/Footer';
 import { Colors, Fonts } from '../constants/theme';
+import { fetchPranksByCategory, fetchAllPranks, PrankCard } from '../services/PrankService';
 
 // Product Card Component
 type ProductCardProps = {
+    id: string;
     name: string;
     price: string;
     image: string;
     theme: typeof Colors.light;
 };
 
-
-
-const ProductCard: React.FC<ProductCardProps> = ({ name, price, image, theme }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, image, theme }) => {
     const router = useRouter();
     return (
         <TouchableOpacity
             style={[styles.productCard, { backgroundColor: theme.white }]}
-            onPress={() => router.push('/prank-detail')}
+            onPress={() => router.push({
+                pathname: '/prank-detail',
+                params: { prankId: id }
+            })}
         >
             <View style={styles.imageContainer}>
                 <Image
@@ -50,39 +54,63 @@ const ProductCard: React.FC<ProductCardProps> = ({ name, price, image, theme }) 
 // Main Home Screen
 const HomeScreen: React.FC = () => {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const categoryParam = params.category as string;
+
     const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'cart' | 'profile'>('home');
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const [pranks, setPranks] = useState<PrankCard[]>([]);
+    const [filteredPranks, setFilteredPranks] = useState<PrankCard[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
     const categories = ['All', 'Latest', 'Most Popular', 'Cheapest'];
 
-    const products = [
-        {
-            id: 1,
-            name: 'Rubber Mouse\nPrank',
-            price: '399',
-            image: 'https://ichef.bbci.co.uk/news/480/cpsprodpb/15AE2/production/_125820888_45fda8df-fa8b-4b70-b711-e45dfd2151d6.jpg.webp'
-        },
-        {
-            id: 2,
-            name: 'Rubber Snake\nPrank',
-            price: '499',
-            image: 'https://images-cdn.ubuy.co.in/634f5fd9e239ce64f93a53c9-snake-toy-130cm-long-realistic.jpg'
-        },
-        {
-            id: 3,
-            name: 'Rubber Cockroach\nPrank',
-            price: '299',
-            image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSCjQF343O1TcopCol8GatwYo4QtYIAxV5Gug&s'
-        },
-        {
-            id: 4,
-            name: 'Spider in a Box\nPrank',
-            price: '499',
-            image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-oX-YPJP5I3k-XQnePBdY3ysz8TPRkWdFtg&s'
-        },
-    ];
+    useEffect(() => {
+        loadPranks();
+    }, [categoryParam]);
+
+    useEffect(() => {
+        filterPranks();
+    }, [pranks, selectedCategory]);
+
+    const loadPranks = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            let fetchedPranks: PrankCard[];
+
+            if (categoryParam) {
+                fetchedPranks = await fetchPranksByCategory(categoryParam);
+            } else {
+                fetchedPranks = await fetchAllPranks();
+            }
+
+            setPranks(fetchedPranks);
+        } catch (err) {
+            console.error('Error loading pranks:', err);
+            setError('Failed to load pranks. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filterPranks = () => {
+        if (selectedCategory === 'All') {
+            setFilteredPranks(pranks);
+        } else if (selectedCategory === 'Latest') {
+            setFilteredPranks([...pranks].reverse());
+        } else if (selectedCategory === 'Most Popular') {
+            // For now, show same as all (can be implemented with popularity data)
+            setFilteredPranks(pranks);
+        } else if (selectedCategory === 'Cheapest') {
+            setFilteredPranks(
+                [...pranks].sort((a, b) => parseInt(a.price) - parseInt(b.price))
+            );
+        }
+    };
 
     const handleTabPress = (tab: string) => {
         setActiveTab(tab as 'home' | 'orders' | 'cart' | 'profile');
@@ -106,10 +134,6 @@ const HomeScreen: React.FC = () => {
                         placeholderTextColor={theme.grey}
                     />
                 </View>
-
-                {/* <TouchableOpacity style={styles.filterButton}>
-                    <Ionicons name="options-outline" size={24} color={theme.text} />
-                </TouchableOpacity> */}
             </View>
 
             {/* Categories */}
@@ -146,23 +170,61 @@ const HomeScreen: React.FC = () => {
                 </ScrollView>
             </View>
 
-            {/* Products Grid */}
-            <ScrollView
-                style={styles.productsContainer}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.productsGrid}>
-                    {products.map((product) => (
-                        <ProductCard
-                            key={product.id}
-                            name={product.name}
-                            price={product.price}
-                            image={product.image}
-                            theme={theme}
-                        />
-                    ))}
+            {/* Loading State */}
+            {loading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                        Loading pranks...
+                    </Text>
                 </View>
-            </ScrollView>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+                <View style={styles.errorContainer}>
+                    <Text style={[styles.errorText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                        {error}
+                    </Text>
+                    <TouchableOpacity
+                        style={[styles.retryButton, { backgroundColor: theme.primary }]}
+                        onPress={loadPranks}
+                    >
+                        <Text style={[styles.retryButtonText, { fontFamily: Fonts.semiBold }]}>
+                            Retry
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Products Grid */}
+            {!loading && !error && (
+                <ScrollView
+                    style={styles.productsContainer}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {filteredPranks.length > 0 ? (
+                        <View style={styles.productsGrid}>
+                            {filteredPranks.map((prank) => (
+                                <ProductCard
+                                    key={prank.id}
+                                    id={prank.id}
+                                    name={prank.name}
+                                    price={prank.price}
+                                    image={prank.image}
+                                    theme={theme}
+                                />
+                            ))}
+                        </View>
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Text style={[styles.emptyText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                No pranks found
+                            </Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
 
             {/* Footer */}
             <Footer />
@@ -236,6 +298,45 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         paddingBottom: 20,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        fontSize: 14,
+        marginTop: 12,
+    },
+    errorContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingVertical: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    retryButton: {
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 100,
+    },
+    emptyText: {
+        fontSize: 16,
     },
     productCard: {
         width: '48%',

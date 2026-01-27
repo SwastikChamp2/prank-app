@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -8,16 +8,19 @@ import {
     TouchableOpacity,
     Image,
     useColorScheme,
-    StatusBar
+    StatusBar,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import Footer from '../components/Footer/Footer';
 import { Colors, Fonts } from '../constants/theme';
+import { fetchAllWraps, WrapCard } from '../services/WrapService';
+import { updateCartItem, CartItem } from '../services/CartService';
 
 // Wrap Card Component
 type WrapCardProps = {
-    id: number;
+    id: string;
     name: string;
     price: string | null;
     image: string;
@@ -26,7 +29,7 @@ type WrapCardProps = {
     onPress: () => void;
 };
 
-const WrapCard: React.FC<WrapCardProps> = ({ name, price, image, theme, isSelected, onPress }) => {
+const WrapCardComponent: React.FC<WrapCardProps> = ({ name, price, image, theme, isSelected, onPress }) => {
     return (
         <TouchableOpacity
             style={[
@@ -62,47 +65,129 @@ const WrapCard: React.FC<WrapCardProps> = ({ name, price, image, theme, isSelect
 // Main Select Wrap Screen
 const SelectWrapScreen: React.FC = () => {
     const router = useRouter();
+    const params = useLocalSearchParams();
+
+    // Get prank and box data from params
+    const prankId = params.prankId as string;
+    const prankTitle = params.prankTitle as string;
+    const prankPrice = params.prankPrice as string;
+    const prankImage = params.prankImage as string;
+    const quantity = params.quantity as string;
+    const boxId = params.boxId as string;
+    const boxTitle = params.boxTitle as string;
+    const boxPrice = params.boxPrice as string;
+    const boxImage = params.boxImage as string;
+
     const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'cart' | 'profile'>('home');
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
-    const [selectedWrapId, setSelectedWrapId] = useState<number | null>(1);
+    const [selectedWrapId, setSelectedWrapId] = useState<string | null>(null);
+    const [selectedWrapName, setSelectedWrapName] = useState<string>('');
+    const [selectedWrapPrice, setSelectedWrapPrice] = useState<string | null>(null);
+    const [selectedWrapImage, setSelectedWrapImage] = useState<string>('');
+    const [wraps, setWraps] = useState<WrapCard[]>([]);
+    const [filteredWraps, setFilteredWraps] = useState<WrapCard[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [savingToCart, setSavingToCart] = useState(false);
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
     const categories = ['All', 'Latest', 'Most Popular', 'Cheapest'];
 
-    const wraps = [
-        {
-            id: 1,
-            name: 'Simple Brown Wrap',
-            price: null,
-            image: 'https://static1.industrybuying.com/products/material-handling-and-packaging/protective-packaging-products/corrugated-paper-rolls/MAT.COR.235697562_1760594305712.webp'
-        },
-        {
-            id: 2,
-            name: 'Colorful Wrap',
-            price: '99',
-            image: 'https://m.media-amazon.com/images/I/91UCdDD8UgL._SL1500_.jpg'
-        },
-        {
-            id: 3,
-            name: 'Premium Wrap',
-            price: '199',
-            image: 'https://m.media-amazon.com/images/I/71HdJQ9AftL.jpg'
-        },
-        {
-            id: 4,
-            name: 'Luxury Wrap',
-            price: '299',
-            image: 'https://aztecdiamond.com/cdn/shop/files/0Y3A8394_09bf55ba-b11c-45a1-8aec-5521833a2a48.jpg?v=1751556321&width=3645'
-        },
-    ];
+    useEffect(() => {
+        loadWraps();
+    }, []);
+
+    useEffect(() => {
+        filterWraps();
+    }, [wraps, selectedCategory]);
+
+    const loadWraps = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const fetchedWraps = await fetchAllWraps();
+            // Sort by price: cheapest first
+            const sortedWraps = [...fetchedWraps].sort((a, b) => {
+                const priceA = a.price ? parseInt(a.price) : 0;
+                const priceB = b.price ? parseInt(b.price) : 0;
+                return priceA - priceB;
+            });
+            setWraps(sortedWraps);
+            // Select the cheapest wrap by default
+            if (sortedWraps.length > 0) {
+                setSelectedWrapId(sortedWraps[0].id);
+                setSelectedWrapName(sortedWraps[0].name);
+                setSelectedWrapPrice(sortedWraps[0].price);
+                setSelectedWrapImage(sortedWraps[0].image);
+            }
+        } catch (err) {
+            console.error('Error loading wraps:', err);
+            setError('Failed to load wraps. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const filterWraps = () => {
+        if (selectedCategory === 'All') {
+            setFilteredWraps(wraps);
+        } else if (selectedCategory === 'Latest') {
+            setFilteredWraps([...wraps].reverse());
+        } else if (selectedCategory === 'Most Popular') {
+            setFilteredWraps(wraps);
+        } else if (selectedCategory === 'Cheapest') {
+            setFilteredWraps(
+                [...wraps].sort((a, b) => {
+                    const priceA = a.price ? parseInt(a.price) : 0;
+                    const priceB = b.price ? parseInt(b.price) : 0;
+                    return priceA - priceB;
+                })
+            );
+        }
+    };
 
     const handleTabPress = (tab: string) => {
         setActiveTab(tab as 'home' | 'orders' | 'cart' | 'profile');
     };
 
-    const handleWrapSelect = (wrapId: number) => {
+    const handleWrapSelect = (wrapId: string, wrapName: string, wrapPrice: string | null, wrapImage: string) => {
         setSelectedWrapId(wrapId);
+        setSelectedWrapName(wrapName);
+        setSelectedWrapPrice(wrapPrice);
+        setSelectedWrapImage(wrapImage);
+    };
+
+    const handleAddToCart = async () => {
+        try {
+            setSavingToCart(true);
+            const cartItem: CartItem = {
+                prankId,
+                prankTitle,
+                prankPrice: parseInt(prankPrice),
+                prankImage,
+                boxId,
+                boxTitle,
+                boxPrice: boxPrice ? parseInt(boxPrice) : null,
+                boxImage,
+                wrapId: selectedWrapId || '',
+                wrapTitle: selectedWrapName,
+                wrapPrice: selectedWrapPrice ? parseInt(selectedWrapPrice) : null,
+                wrapImage: selectedWrapImage,
+            };
+
+            const success = await updateCartItem(cartItem);
+            if (success) {
+                router.push('/cart');
+            } else {
+                setError('Failed to add to cart');
+            }
+        } catch (err) {
+            console.error('Error adding to cart:', err);
+            setError('Failed to add to cart');
+        } finally {
+            setSavingToCart(false);
+        }
     };
 
     return (
@@ -123,10 +208,6 @@ const SelectWrapScreen: React.FC = () => {
                         placeholderTextColor={theme.grey}
                     />
                 </View>
-
-                {/* <TouchableOpacity style={styles.filterButton}>
-                    <Ionicons name="options-outline" size={24} color={theme.text} />
-                </TouchableOpacity> */}
             </View>
 
             {/* Categories */}
@@ -163,37 +244,80 @@ const SelectWrapScreen: React.FC = () => {
                 </ScrollView>
             </View>
 
-            {/* Wraps Grid */}
-            <ScrollView
-                style={styles.wrapsContainer}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.wrapsGrid}>
-                    {wraps.map((wrap) => (
-                        <WrapCard
-                            key={wrap.id}
-                            id={wrap.id}
-                            name={wrap.name}
-                            price={wrap.price}
-                            image={wrap.image}
-                            theme={theme}
-                            isSelected={selectedWrapId === wrap.id}
-                            onPress={() => handleWrapSelect(wrap.id)}
-                        />
-                    ))}
+            {/* Loading State */}
+            {loading && (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                        Loading wraps...
+                    </Text>
                 </View>
+            )}
 
-                {/* Select Wrap Button */}
-                <View style={styles.buttonContainer}>
+            {/* Error State */}
+            {error && !loading && (
+                <View style={styles.errorContainer}>
+                    <Text style={[styles.errorText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                        {error}
+                    </Text>
                     <TouchableOpacity
-                        style={[styles.selectButton, { backgroundColor: theme.primary }]}
-                        onPress={() => router.push('/cart')}
-
+                        style={[styles.retryButton, { backgroundColor: theme.primary }]}
+                        onPress={loadWraps}
                     >
-                        <Text style={styles.selectButtonText}>Select Wrap</Text>
+                        <Text style={[styles.retryButtonText, { fontFamily: Fonts.semiBold }]}>
+                            Retry
+                        </Text>
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
+            )}
+
+            {/* Wraps Grid */}
+            {!loading && !error && (
+                <ScrollView
+                    style={styles.wrapsContainer}
+                    showsVerticalScrollIndicator={false}
+                >
+                    {filteredWraps.length > 0 ? (
+                        <>
+                            <View style={styles.wrapsGrid}>
+                                {filteredWraps.map((wrap) => (
+                                    <WrapCardComponent
+                                        key={wrap.id}
+                                        id={wrap.id}
+                                        name={wrap.name}
+                                        price={wrap.price}
+                                        image={wrap.image}
+                                        theme={theme}
+                                        isSelected={selectedWrapId === wrap.id}
+                                        onPress={() => handleWrapSelect(wrap.id, wrap.name, wrap.price, wrap.image)}
+                                    />
+                                ))}
+                            </View>
+
+                            {/* Select Wrap Button */}
+                            <View style={styles.buttonContainer}>
+                                <TouchableOpacity
+                                    style={[styles.selectButton, { backgroundColor: savingToCart ? theme.grey : theme.primary }]}
+                                    onPress={handleAddToCart}
+                                    disabled={savingToCart}
+                                >
+                                    {savingToCart ? (
+                                        <ActivityIndicator color="#FFFFFF" />
+                                    ) : (
+                                        <Text style={styles.selectButtonText}>Select Wrap</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    ) : (
+                        <View style={styles.emptyContainer}>
+                            <Text style={[styles.emptyText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                No wraps found
+                            </Text>
+                        </View>
+                    )}
+                </ScrollView>
+            )}
 
             {/* Footer */}
             <Footer />
@@ -266,6 +390,45 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        fontSize: 14,
+        marginTop: 12,
+    },
+    errorContainer: {
+        flex: 1,
+        paddingHorizontal: 20,
+        paddingVertical: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {
+        fontSize: 16,
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    retryButton: {
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 100,
+    },
+    emptyText: {
+        fontSize: 16,
     },
     wrapCard: {
         width: '48%',

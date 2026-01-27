@@ -86,8 +86,10 @@ export const signOutUser = async () => {
         // Sign out from Firebase
         await auth.signOut();
 
-        // Clear AsyncStorage
+        // Clear AsyncStorage - remove all persistence data
         await AsyncStorage.removeItem('userToken');
+        await AsyncStorage.removeItem('persistLogin');
+        await AsyncStorage.removeItem('lastLoginPhone');
 
         // Clear any global state
         (global as any).confirmationResult = null;
@@ -97,5 +99,61 @@ export const signOutUser = async () => {
     } catch (error) {
         console.error('Error signing out:', error);
         throw error;
+    }
+};
+
+/**
+ * Enable persistent login - user will remain logged in across app sessions
+ * Call this after successful authentication
+ */
+export const enablePersistentLogin = async (phoneNumber?: string) => {
+    try {
+        await AsyncStorage.setItem('persistLogin', 'true');
+        if (phoneNumber) {
+            await AsyncStorage.setItem('lastLoginPhone', phoneNumber);
+        }
+        console.log('Persistent login enabled');
+    } catch (error) {
+        console.error('Error enabling persistent login:', error);
+        throw error;
+    }
+};
+
+/**
+ * Disable persistent login - user will be logged out on next app restart
+ */
+export const disablePersistentLogin = async () => {
+    try {
+        await AsyncStorage.setItem('persistLogin', 'false');
+        await AsyncStorage.removeItem('lastLoginPhone');
+        console.log('Persistent login disabled');
+    } catch (error) {
+        console.error('Error disabling persistent login:', error);
+        throw error;
+    }
+};
+
+/**
+ * Check if persistent login is enabled
+ */
+export const isPersistentLoginEnabled = async (): Promise<boolean> => {
+    try {
+        const persistLogin = await AsyncStorage.getItem('persistLogin');
+        return persistLogin === 'true';
+    } catch (error) {
+        console.error('Error checking persistent login status:', error);
+        return false;
+    }
+};
+
+/**
+ * Get the last logged-in phone number (if available)
+ */
+export const getLastLoginPhone = async (): Promise<string | null> => {
+    try {
+        return await AsyncStorage.getItem('lastLoginPhone');
+    } catch (error) {
+        console.error('Error getting last login phone:', error);
+        return null;
     }
 };

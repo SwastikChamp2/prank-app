@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useRouter } from 'expo-router';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
     View,
     Text,
@@ -12,10 +12,13 @@ import {
     useColorScheme,
     Modal,
     Dimensions,
+    ActivityIndicator,
+    Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import Footer from '../components/Footer/Footer';
+import { getCartItems, getCartTotal, clearCart, removeCartItem, CartItem } from '../services/CartService';
 
 const Cart = () => {
     const router = useRouter();
@@ -26,11 +29,110 @@ const Cart = () => {
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState('mastercard');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+    const [cartTotal, setCartTotal] = useState(0);
+    const [loading, setLoading] = useState(true);
 
     const maxPaymentDrawerHeight = Dimensions.get('window').height * 0.7;
 
+    // Load cart items when component mounts or gains focus
+    useFocusEffect(
+        useCallback(() => {
+            loadCartData();
+        }, [])
+    );
+
+    const loadCartData = async () => {
+        try {
+            setLoading(true);
+            const items = await getCartItems();
+            const total = await getCartTotal();
+            setCartItems(items);
+            setCartTotal(total);
+        } catch (err) {
+            console.error('Error loading cart:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleClearCart = () => {
+        Alert.alert(
+            'Clear Cart',
+            'Are you sure you want to clear your cart?',
+            [
+                {
+                    text: 'Cancel',
+                    onPress: () => { },
+                    style: 'cancel',
+                },
+                {
+                    text: 'Clear',
+                    onPress: async () => {
+                        const success = await clearCart();
+                        if (success) {
+                            setCartItems([]);
+                            setCartTotal(0);
+                        }
+                    },
+                    style: 'destructive',
+                },
+            ]
+        );
+    };
+
+    const handleRemoveItem = (prankId: string) => {
+        Alert.alert(
+            'Remove Item',
+            'Are you sure you want to remove this item from your cart?',
+            [
+                {
+                    text: 'Cancel',
+                    onPress: () => { },
+                    style: 'cancel',
+                },
+                {
+                    text: 'Remove',
+                    onPress: async () => {
+                        const success = await removeCartItem(prankId);
+                        if (success) {
+                            loadCartData();
+                        }
+                    },
+                    style: 'destructive',
+                },
+            ]
+        );
+    };
+
     const handlePaymentSelect = (method: string) => {
         setSelectedPayment(method);
+    };
+
+    const getPaymentDetails = () => {
+        const paymentMethods: { [key: string]: { name: string; logo: string } } = {
+            netbanking: {
+                name: 'Net Banking',
+                logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTRhCD38FVWaMwBzo21TODmpPqXSSbnwcJI9Q&s'
+            },
+            upi: {
+                name: 'UPI',
+                logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRSWPEHCa2ZWE1BoRW2Y6Eq4I0E_6tWZtmbIg&s'
+            },
+            paypal: {
+                name: 'PayPal',
+                logo: 'https://cdn.pixabay.com/photo/2018/05/08/21/29/paypal-3384015_1280.png'
+            },
+            mastercard: {
+                name: 'Master Card',
+                logo: 'https://platform.vox.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/13674554/Mastercard_logo.jpg?quality=90&strip=all&crop=0,16.666666666667,100,66.666666666667'
+            },
+            visa: {
+                name: 'Visa',
+                logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Visa.svg/1200px-Visa.svg.png'
+            }
+        };
+        return paymentMethods[selectedPayment] || paymentMethods['mastercard'];
     };
 
     const handleConfirmPayment = () => {
@@ -38,6 +140,10 @@ const Cart = () => {
     };
 
     const handleCheckout = () => {
+        if (cartItems.length === 0) {
+            Alert.alert('Empty Cart', 'Please add items to your cart before checkout');
+            return;
+        }
         setShowTermsModal(true);
     };
 
@@ -106,90 +212,208 @@ const Cart = () => {
 
                 {/* Products Section */}
                 <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
-                        Products
-                    </Text>
-
-                    {/* Product 1 */}
-                    <View style={[styles.productItem, { backgroundColor: theme.background }]}>
-                        <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
-                            <Image
-                                source={{ uri: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ-oX-YPJP5I3k-XQnePBdY3ysz8TPRkWdFtg&s' }}
-                                style={styles.productImage}
-                                resizeMode="cover"
-                            />
-                        </View>
-                        <Text style={[styles.productName, { color: theme.text, fontFamily: Fonts.medium }]}>
-                            Spider in a box Prank
+                    <View style={styles.sectionHeader}>
+                        <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
+                            Products
                         </Text>
-                        <Text style={[styles.productPrice, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                            ₹ 499
-                        </Text>
+                        {cartItems.length > 0 && (
+                            <TouchableOpacity onPress={handleClearCart}>
+                                <Text style={[styles.editButton, { color: '#FF4444', fontFamily: Fonts.medium }]}>
+                                    Clear Cart
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
-                    {/* Product 2 */}
-                    <View style={[styles.productItem, { backgroundColor: theme.background }]}>
-                        <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
-                            <Image
-                                source={{ uri: 'https://i.etsystatic.com/24039383/r/il/98e077/2404078216/il_fullxfull.2404078216_tc34.jpg' }}
-                                style={styles.productImage}
-                                resizeMode="cover"
-                            />
+                    {loading ? (
+                        <View style={styles.loadingContainer}>
+                            <ActivityIndicator size="large" color={theme.primary} />
                         </View>
-                        <Text style={[styles.productName, { color: theme.text, fontFamily: Fonts.medium }]}>
-                            Simple Cardboard Box
-                        </Text>
-                        <Text style={[styles.productPrice, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                            ₹ 0
-                        </Text>
-                    </View>
+                    ) : cartItems.length === 0 ? (
+                        <View style={styles.emptyCartContainer}>
+                            <Ionicons name="bag-outline" size={48} color={theme.grey} />
+                            <Text style={[styles.emptyCartText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                Your cart is empty
+                            </Text>
+                            <TouchableOpacity
+                                style={[styles.continueShopping, { backgroundColor: theme.primary }]}
+                                onPress={() => router.push('/home')}
+                            >
+                                <Text style={[styles.continueShoppingText, { fontFamily: Fonts.semiBold }]}>
+                                    Continue Shopping
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        cartItems.map((item, index) => (
+                            <View
+                                key={index}
+                                style={[
+                                    styles.prankGroup,
+                                    {
+                                        backgroundColor: theme.background,
+                                        borderColor: theme.border,
+                                    },
+                                ]}
+                            >
+                                {/* Group Header with Item Count and Remove Button */}
+                                <View style={styles.groupHeader}>
+                                    <View style={styles.groupTitleContainer}>
+                                        <Text
+                                            style={[
+                                                styles.groupTitle,
+                                                { color: theme.text, fontFamily: Fonts.semiBold },
+                                            ]}
+                                        >
+                                            Prank {index + 1}
+                                        </Text>
+                                        <View
+                                            style={[
+                                                styles.totalBadge,
+                                                { backgroundColor: theme.primary },
+                                            ]}
+                                        >
+                                            <Text
+                                                style={[
+                                                    styles.badgeText,
+                                                    { fontFamily: Fonts.semiBold },
+                                                ]}
+                                            >
+                                                ₹ {item.prankPrice + (item.boxPrice ?? 0) + (item.wrapPrice ?? 0)}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity onPress={() => handleRemoveItem(item.prankId)}>
+                                        <Ionicons name="trash-outline" size={24} color="#E53935" />
+                                    </TouchableOpacity>
+                                </View>
 
-                    {/* Product 3 */}
-                    <View style={[styles.productItem, { backgroundColor: theme.background }]}>
-                        <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
-                            <Image
-                                source={{ uri: 'https://static1.industrybuying.com/products/material-handling-and-packaging/protective-packaging-products/corrugated-paper-rolls/MAT.COR.235697562_1760594305712.webp' }}
-                                style={styles.productImage}
-                                resizeMode="cover"
-                            />
-                        </View>
-                        <Text style={[styles.productName, { color: theme.text, fontFamily: Fonts.medium }]}>
-                            Simple Packing Paper
-                        </Text>
-                        <Text style={[styles.productPrice, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                            ₹ 0
-                        </Text>
-                    </View>
+                                {/* Prank Item */}
+                                <View style={[styles.productItem, { backgroundColor: theme.background }]}>
+                                    <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
+                                        <Image
+                                            source={{ uri: item.prankImage }}
+                                            style={styles.productImage}
+                                            resizeMode="cover"
+                                        />
+                                    </View>
+                                    <View style={styles.productDetails}>
+                                        <Text
+                                            style={[
+                                                styles.productName,
+                                                { color: theme.text, fontFamily: Fonts.medium },
+                                            ]}
+                                        >
+                                            {item.prankTitle}
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.productPrice,
+                                                { color: theme.text, fontFamily: Fonts.semiBold },
+                                            ]}
+                                        >
+                                            ₹ {item.prankPrice}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* Box Item */}
+                                <View style={[styles.productItem, { backgroundColor: theme.background }]}>
+                                    <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
+                                        {item.boxImage ? (
+                                            <Image
+                                                source={{ uri: item.boxImage }}
+                                                style={styles.productImage}
+                                                resizeMode="cover"
+                                            />
+                                        ) : (
+                                            <Ionicons name="cube" size={40} color={theme.grey} />
+                                        )}
+                                    </View>
+                                    <View style={styles.productDetails}>
+                                        <Text
+                                            style={[
+                                                styles.productName,
+                                                { color: theme.text, fontFamily: Fonts.medium },
+                                            ]}
+                                        >
+                                            {item.boxTitle}
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.productPrice,
+                                                { color: theme.text, fontFamily: Fonts.semiBold },
+                                            ]}
+                                        >
+                                            ₹ {item.boxPrice || 0}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* Wrap Item */}
+                                <View style={[styles.productItem, { backgroundColor: theme.background }]}>
+                                    <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
+                                        {item.wrapImage ? (
+                                            <Image
+                                                source={{ uri: item.wrapImage }}
+                                                style={styles.productImage}
+                                                resizeMode="cover"
+                                            />
+                                        ) : (
+                                            <Ionicons name="gift" size={40} color={theme.grey} />
+                                        )}
+                                    </View>
+                                    <View style={styles.productDetails}>
+                                        <Text
+                                            style={[
+                                                styles.productName,
+                                                { color: theme.text, fontFamily: Fonts.medium },
+                                            ]}
+                                        >
+                                            {item.wrapTitle}
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.productPrice,
+                                                { color: theme.text, fontFamily: Fonts.semiBold },
+                                            ]}
+                                        >
+                                            ₹ {item.wrapPrice || 0}
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+                        ))
+                    )}
                 </View>
 
                 {/* Payment Method Section */}
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
-                        Payment Method
-                    </Text>
+                {!loading && cartItems.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
+                            Payment Method
+                        </Text>
 
-                    <TouchableOpacity
-                        style={[styles.paymentCard, { backgroundColor: theme.background, borderColor: theme.border }]}
-                        onPress={() => setShowPaymentModal(true)}
-                    >
-                        <View style={styles.paymentLeft}>
-                            <Image
-                                source={{ uri: 'https://platform.vox.com/wp-content/uploads/sites/2/chorus/uploads/chorus_asset/file/13674554/Mastercard_logo.jpg?quality=90&strip=all&crop=0,16.666666666667,100,66.666666666667' }}
-                                style={styles.mastercardLogo}
-                                resizeMode="cover"
-                            />
-                            <View style={styles.cardDetails}>
-                                <Text style={[styles.cardName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                    Master Card
-                                </Text>
-                                {/* <Text style={[styles.cardNumber, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                    **** **** 1234
-                                </Text> */}
+                        <TouchableOpacity
+                            style={[styles.paymentCard, { backgroundColor: theme.background, borderColor: theme.border }]}
+                            onPress={() => setShowPaymentModal(true)}
+                        >
+                            <View style={styles.paymentLeft}>
+                                <Image
+                                    source={{ uri: getPaymentDetails().logo }}
+                                    style={styles.mastercardLogo}
+                                    resizeMode="cover"
+                                />
+                                <View style={styles.cardDetails}>
+                                    <Text style={[styles.cardName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                                        {getPaymentDetails().name}
+                                    </Text>
+                                </View>
                             </View>
-                        </View>
-                        <Ionicons name="chevron-forward" size={24} color={theme.grey} />
-                    </TouchableOpacity>
-                </View>
+                            <Ionicons name="chevron-forward" size={24} color={theme.grey} />
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 <View style={{ height: 30 }} />
             </ScrollView>
@@ -197,6 +421,15 @@ const Cart = () => {
             {/* Checkout Button and Footer */}
             {!showPaymentModal && !showTermsModal && !showSuccessModal && (
                 <View style={[styles.footer, { backgroundColor: theme.background }]}>
+                    <View style={styles.totalContainer}>
+                        <Text style={[styles.totalLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                            Total Amount
+                        </Text>
+                        <Text style={[styles.totalAmount, { color: theme.text, fontFamily: Fonts.bold }]}>
+                            ₹ {cartTotal.toFixed(2)}
+                        </Text>
+                    </View>
+
                     <TouchableOpacity
                         style={[styles.checkoutButton, { backgroundColor: theme.primary }]}
                         onPress={handleCheckout}
@@ -617,6 +850,33 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '500',
     },
+    loadingContainer: {
+        paddingVertical: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyCartContainer: {
+        paddingVertical: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyCartText: {
+        fontSize: 16,
+        marginTop: 16,
+        marginBottom: 24,
+    },
+    continueShopping: {
+        paddingHorizontal: 32,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    continueShoppingText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+    },
+    productDetails: {
+        flex: 1,
+    },
     addressCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -693,6 +953,50 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginLeft: 12,
     },
+    prankGroup: {
+        marginHorizontal: 20,
+        marginBottom: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 3,
+    },
+    groupHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    groupTitleContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    groupTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    totalBadge: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    badgeText: {
+        color: '#FFFFFF',
+        fontSize: 13,
+        fontWeight: '600',
+    },
     paymentCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -734,6 +1038,23 @@ const styles = StyleSheet.create({
     },
     footer: {
         paddingTop: 12,
+    },
+    totalContainer: {
+        marginHorizontal: 20,
+        marginBottom: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 16,
+        backgroundColor: 'rgba(232, 118, 75, 0.08)',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    totalLabel: {
+        fontSize: 14,
+    },
+    totalAmount: {
+        fontSize: 22,
     },
     checkoutButton: {
         marginHorizontal: 20,
