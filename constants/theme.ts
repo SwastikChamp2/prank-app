@@ -23,6 +23,10 @@ export const Colors = {
     searchBg: '#F5F5F5',
     cardShadow: 'rgba(0, 0, 0, 0.1)',
     //Status Colors 
+    orderPlacedBg: '#E3F2FD',
+    orderPlacedText: '#1565C0',
+    orderPickedBg: '#F3E5F5',
+    orderPickedText: '#6A1B9A',
     deliveredBg: '#E8F5E9',
     deliveredText: '#2E7D32',
     inTransitBg: '#FFF3E0',
@@ -55,6 +59,10 @@ export const Colors = {
     searchBg: '#1E1E1E',
     cardShadow: 'rgba(0, 0, 0, 0.3)',
     //Status Colors 
+    orderPlacedBg: '#E3F2FD',
+    orderPlacedText: '#1565C0',
+    orderPickedBg: '#F3E5F5',
+    orderPickedText: '#6A1B9A',
     deliveredBg: '#E8F5E9',
     deliveredText: '#2E7D32',
     inTransitBg: '#FFF3E0',

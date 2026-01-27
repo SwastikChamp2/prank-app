@@ -1,3 +1,4 @@
+// pages/Cart.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
@@ -19,6 +20,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import Footer from '../components/Footer/Footer';
 import { getCartItems, getCartTotal, clearCart, removeCartItem, CartItem } from '../services/CartService';
+import { ensureDefaultAddress, AddressData } from '../services/addressService';
+import { createOrder, OrderItem } from '../services/orderService';
 
 const Cart = () => {
     const router = useRouter();
@@ -32,13 +35,16 @@ const Cart = () => {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [cartTotal, setCartTotal] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [defaultAddress, setDefaultAddress] = useState<AddressData | null>(null);
+    const [processingOrder, setProcessingOrder] = useState(false);
 
     const maxPaymentDrawerHeight = Dimensions.get('window').height * 0.7;
 
-    // Load cart items when component mounts or gains focus
+    // Load cart items and address when component mounts or gains focus
     useFocusEffect(
         useCallback(() => {
             loadCartData();
+            loadDefaultAddress();
         }, [])
     );
 
@@ -53,6 +59,20 @@ const Cart = () => {
             console.error('Error loading cart:', err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadDefaultAddress = async () => {
+        try {
+            const addresses = await ensureDefaultAddress();
+            const defaultAddr = addresses.find(addr => addr.isDefault);
+            if (defaultAddr) {
+                setDefaultAddress(defaultAddr);
+            } else if (addresses.length > 0) {
+                setDefaultAddress(addresses[0]);
+            }
+        } catch (error) {
+            console.error('Error loading address:', error);
         }
     };
 
@@ -144,15 +164,98 @@ const Cart = () => {
             Alert.alert('Empty Cart', 'Please add items to your cart before checkout');
             return;
         }
+
+        if (!defaultAddress) {
+            Alert.alert(
+                'No Address',
+                'Please add a delivery address before checkout',
+                [
+                    {
+                        text: 'Add Address',
+                        onPress: () => router.push('/add-address')
+                    },
+                    {
+                        text: 'Cancel',
+                        style: 'cancel'
+                    }
+                ]
+            );
+            return;
+        }
+
         setShowTermsModal(true);
     };
 
-    const handleContinueFromTerms = () => {
-        if (agreedToTerms) {
-            setShowTermsModal(false);
-            setAgreedToTerms(false);
-            setShowSuccessModal(true);
+    const handleContinueFromTerms = async () => {
+        if (!agreedToTerms) {
+            return;
         }
+
+        setShowTermsModal(false);
+        setAgreedToTerms(false);
+        setProcessingOrder(true);
+
+        try {
+            // Prepare order items from cart items
+            const orderItems: OrderItem[] = cartItems.map(item => ({
+                prankId: item.prankId,
+                prankTitle: item.prankTitle,
+                prankImage: item.prankImage,
+                prankPrice: item.prankPrice,
+                boxTitle: item.boxTitle,
+                boxImage: item.boxImage,
+                boxPrice: item.boxPrice || 0,
+                wrapTitle: item.wrapTitle,
+                wrapImage: item.wrapImage,
+                wrapPrice: item.wrapPrice || 0,
+                totalPrice: item.prankPrice + (item.boxPrice || 0) + (item.wrapPrice || 0)
+            }));
+
+            // Get payment method name
+            const paymentMethodName = getPaymentDetails().name;
+
+            // Create order in Firebase
+            const result = await createOrder(
+                orderItems,
+                defaultAddress!,
+                paymentMethodName,
+                cartTotal,
+                0 // Delivery fees (0 for now)
+            );
+
+            if (result.success) {
+                // Clear the cart after successful order
+                await clearCart();
+                setCartItems([]);
+                setCartTotal(0);
+
+                // Show success modal
+                setShowSuccessModal(true);
+            } else {
+                Alert.alert(
+                    'Order Failed',
+                    result.error || 'Failed to create order. Please try again.',
+                    [{ text: 'OK' }]
+                );
+            }
+        } catch (error) {
+            console.error('Error creating order:', error);
+            Alert.alert(
+                'Error',
+                'An unexpected error occurred. Please try again.',
+                [{ text: 'OK' }]
+            );
+        } finally {
+            setProcessingOrder(false);
+        }
+    };
+
+    const handleEditAddress = () => {
+        router.push('/my-address');
+    };
+
+    const formatAddress = (address: AddressData) => {
+        return `${address.flatNumber}, ${address.buildingName}, ${address.streetName}`;
     };
 
     return (
@@ -161,7 +264,7 @@ const Cart = () => {
 
             {/* Header */}
             <View style={[styles.header, { backgroundColor: theme.background }]}>
-                <TouchableOpacity style={styles.backButton}>
+                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
                     <Ionicons name="chevron-back" size={28} color={theme.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
@@ -178,36 +281,49 @@ const Cart = () => {
                         <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
                             Address
                         </Text>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={handleEditAddress}>
                             <Text style={[styles.editButton, { color: theme.primary, fontFamily: Fonts.medium }]}>
                                 Edit
                             </Text>
                         </TouchableOpacity>
                     </View>
 
-                    <View style={[styles.addressCard, { backgroundColor: theme.background }]}>
-                        <View style={styles.addressContent}>
-                            <View style={styles.mapThumbnail}>
-                                <Image
-                                    source={require('../assets/images/map-placeholder.png')}
-                                    style={styles.mapThumbnailImage}
-                                    resizeMode="cover"
-                                />
-                                <View style={styles.mapPinSmall}>
-                                    <View style={styles.mapPinInner} />
+                    {defaultAddress ? (
+                        <View style={[styles.addressCard, { backgroundColor: theme.background }]}>
+                            <View style={styles.addressContent}>
+                                <View style={styles.mapThumbnail}>
+                                    <Image
+                                        source={require('../assets/images/map-placeholder.png')}
+                                        style={styles.mapThumbnailImage}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.mapPinSmall}>
+                                        <View style={styles.mapPinInner} />
+                                    </View>
+                                </View>
+
+                                <View style={styles.addressInfo}>
+                                    <Text style={[styles.addressLabel, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                                        {defaultAddress.addressLabel}
+                                    </Text>
+                                    <Text style={[styles.addressText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                        {formatAddress(defaultAddress)},{'\n'}
+                                        Pincode: {defaultAddress.pincode}
+                                    </Text>
                                 </View>
                             </View>
-
-                            <View style={styles.addressInfo}>
-                                <Text style={[styles.addressLabel, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                    House
-                                </Text>
-                                <Text style={[styles.addressText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                    404 Marigold, Lodha Luxuria,{'\n'}Majiwada Thane West,{'\n'}Mumbai, India - 400601
-                                </Text>
-                            </View>
                         </View>
-                    </View>
+                    ) : (
+                        <TouchableOpacity
+                            style={[styles.addAddressButton, { borderColor: theme.primary }]}
+                            onPress={() => router.push('/add-address')}
+                        >
+                            <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
+                            <Text style={[styles.addAddressText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                                Add Delivery Address
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* Products Section */}
@@ -490,9 +606,6 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             Net Banking
                                         </Text>
-                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                            All major banks supported
-                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[
@@ -522,9 +635,6 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             UPI
                                         </Text>
-                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                            Google Pay, PhonePe, Paytm
-                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[
@@ -554,9 +664,6 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             Paypal
                                         </Text>
-                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                            sosk****@email.com
-                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[
@@ -583,9 +690,6 @@ const Cart = () => {
                                         <Text style={[styles.paymentOptionName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                                             Mastercard
                                         </Text>
-                                        {/* <Text style={[styles.paymentOptionInfo, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                            4827 8472 7424 ****
-                                        </Text> */}
                                     </View>
                                 </View>
                                 <View style={[
@@ -612,7 +716,6 @@ const Cart = () => {
                 </TouchableOpacity>
             </Modal>
 
-            {/* Terms and Conditions Modal */}
             {/* Terms and Conditions Modal */}
             <Modal
                 visible={showTermsModal}
@@ -724,27 +827,31 @@ const Cart = () => {
                                     backgroundColor: agreedToTerms
                                         ? theme.primary
                                         : theme.grey,
-                                    opacity: agreedToTerms ? 1 : 0.5,
+                                    opacity: (agreedToTerms && !processingOrder) ? 1 : 0.5,
                                 },
                             ]}
                             onPress={handleContinueFromTerms}
-                            disabled={!agreedToTerms}
+                            disabled={!agreedToTerms || processingOrder}
                         >
-                            <Text
-                                style={[
-                                    styles.confirmButtonText,
-                                    { fontFamily: Fonts.semiBold },
-                                ]}
-                            >
-                                Continue
-                            </Text>
+                            {processingOrder ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                                <Text
+                                    style={[
+                                        styles.confirmButtonText,
+                                        { fontFamily: Fonts.semiBold },
+                                    ]}
+                                >
+                                    Continue
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
 
             {/* Order Success Modal */}
-            < Modal
+            <Modal
                 visible={showSuccessModal}
                 transparent={true}
                 animationType="slide"
@@ -799,8 +906,8 @@ const Cart = () => {
                         </TouchableOpacity>
                     </TouchableOpacity>
                 </TouchableOpacity>
-            </Modal >
-        </View >
+            </Modal>
+        </View>
     );
 };
 
@@ -924,6 +1031,21 @@ const styles = StyleSheet.create({
     addressText: {
         fontSize: 13,
         lineHeight: 18,
+    },
+    addAddressButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        gap: 8,
+        marginTop: 12,
+    },
+    addAddressText: {
+        fontSize: 15,
+        fontWeight: '600',
     },
     productItem: {
         flexDirection: 'row',

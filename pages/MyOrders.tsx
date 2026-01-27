@@ -1,5 +1,5 @@
 // pages/MyOrders.tsx
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,75 +9,65 @@ import {
     Dimensions,
     useColorScheme,
     ScrollView,
+    ActivityIndicator,
+    RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import Footer from '../components/Footer/Footer';
+import { getUserOrders, OrderData, mapOrderStatus } from '../services/orderService';
 
 const { width } = Dimensions.get('window');
-
-interface Order {
-    id: string;
-    orderNumber: string;
-    productName: string;
-    box: string;
-    wrapper: string;
-    quantity: number;
-    price: number;
-    status: 'delivered' | 'in-transit' | 'cancelled';
-    imageUrl: string;
-}
 
 const MyOrders = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
 
-    const orders: Order[] = [
-        {
-            id: '1',
-            orderNumber: '#PRK1024',
-            productName: 'Spider in a Box Prank',
-            box: 'Simple Cardboard Box',
-            wrapper: 'Simple Packing Wrap',
-            quantity: 1,
-            price: 499,
-            status: 'delivered',
-            imageUrl: 'https://ichef.bbci.co.uk/news/480/cpsprodpb/15AE2/production/_125820888_45fda8df-fa8b-4b70-b711-e45dfd2151d6.jpg.webp',
-        },
-        {
-            id: '2',
-            orderNumber: '#PRK1017',
-            productName: 'Rubber Snake Prank',
-            box: 'Simple Cardboard Box',
-            wrapper: 'Festive Gift Wrap',
-            quantity: 1,
-            price: 699,
-            status: 'in-transit',
-            imageUrl: 'https://images-cdn.ubuy.co.in/634f5fd9e239ce64f93a53c9-snake-toy-130cm-long-realistic.jpg',
-        },
-        {
-            id: '3',
-            orderNumber: '#PRK1005',
-            productName: 'Rubber Mouse Prank',
-            box: 'Simple Cardboard Box',
-            wrapper: 'Golden Gift Wrap',
-            quantity: 1,
-            price: 399,
-            status: 'cancelled',
-            imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSCjQF343O1TcopCol8GatwYo4QtYIAxV5Gug&s',
-        },
-    ];
+    const [orders, setOrders] = useState<OrderData[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const getStatusConfig = (status: Order['status']) => {
+    useFocusEffect(
+        useCallback(() => {
+            loadOrders();
+        }, [])
+    );
+
+    const loadOrders = async () => {
+        try {
+            setLoading(true);
+            const fetchedOrders = await getUserOrders();
+            setOrders(fetchedOrders);
+        } catch (error) {
+            console.error('Error loading orders:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadOrders();
+        setRefreshing(false);
+    };
+
+    const getStatusConfig = (status: 'order-placed' | 'order-picked' | 'in-transit' | 'delivered' | 'cancelled') => {
         switch (status) {
-            case 'delivered':
+            case 'order-placed':
                 return {
-                    label: 'Delivered',
+                    label: 'Order Placed',
                     icon: 'checkmark-circle',
-                    bgColor: theme.deliveredBg,
-                    textColor: theme.deliveredText,
+                    bgColor: theme.orderPlacedBg,
+                    textColor: theme.orderPlacedText,
+                };
+            case 'order-picked':
+                return {
+                    label: 'Order Picked',
+                    icon: 'cube',
+                    bgColor: theme.orderPickedBg,
+                    textColor: theme.orderPickedText,
                 };
             case 'in-transit':
                 return {
@@ -85,6 +75,13 @@ const MyOrders = () => {
                     icon: 'time',
                     bgColor: theme.inTransitBg,
                     textColor: theme.inTransitText,
+                };
+            case 'delivered':
+                return {
+                    label: 'Delivered',
+                    icon: 'checkmark-done-circle',
+                    bgColor: theme.deliveredBg,
+                    textColor: theme.deliveredText,
                 };
             case 'cancelled':
                 return {
@@ -101,10 +98,33 @@ const MyOrders = () => {
     };
 
     const handleViewDetails = (orderId: string) => {
-        console.log('View details:', orderId);
-        // Navigate to order details
-        router.push(`/order-detail`);
+        router.push(`/order-detail?orderId=${orderId}`);
     };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.background }]}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                        <Ionicons name="chevron-back" size={28} color={theme.text} />
+                    </TouchableOpacity>
+                    <Text style={[styles.headerTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
+                        My Orders
+                    </Text>
+                    <View style={styles.filterButton} />
+                </View>
+
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.primary} />
+                    <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                        Loading orders...
+                    </Text>
+                </View>
+
+                <Footer />
+            </View>
+        );
+    }
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -125,75 +145,105 @@ const MyOrders = () => {
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={theme.primary}
+                        colors={[theme.primary]}
+                    />
+                }
             >
-                {orders.map((order) => {
-                    const statusConfig = getStatusConfig(order.status);
+                {orders.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="receipt-outline" size={64} color={theme.grey} />
+                        <Text style={[styles.emptyTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                            No Orders Yet
+                        </Text>
+                        <Text style={[styles.emptySubtitle, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                            Start shopping to see your orders here
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.shopButton, { backgroundColor: theme.primary }]}
+                            onPress={() => router.push('/home')}
+                        >
+                            <Text style={[styles.shopButtonText, { fontFamily: Fonts.semiBold }]}>
+                                Start Shopping
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    orders.map((order) => {
+                        const mappedStatus = mapOrderStatus(order.status);
+                        const statusConfig = getStatusConfig(mappedStatus.status);
+                        const firstItem = order.items[0];
 
-                    return (
-                        <View key={order.id} style={[styles.orderCard, { backgroundColor: theme.background }]}>
-                            {/* Order Header */}
-                            <View style={styles.orderHeader}>
-                                <Text style={[styles.orderNumber, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                    Order {order.orderNumber}
-                                </Text>
-                                <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
-                                    <Ionicons name={statusConfig.icon as any} size={14} color={statusConfig.textColor} />
-                                    <Text style={[styles.statusText, { color: statusConfig.textColor, fontFamily: Fonts.medium }]}>
-                                        {statusConfig.label}
+                        return (
+                            <View key={order.orderId} style={[styles.orderCard, { backgroundColor: theme.background }]}>
+                                {/* Order Header */}
+                                <View style={styles.orderHeader}>
+                                    <Text style={[styles.orderNumber, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                                        Order {order.orderNumber}
                                     </Text>
-                                </View>
-                            </View>
-
-                            {/* Order Content */}
-                            <View style={styles.orderContent}>
-                                {/* Product Image */}
-                                <View style={styles.imageContainer}>
-                                    <Image
-                                        source={{ uri: order.imageUrl }}
-                                        style={styles.productImage}
-                                        resizeMode="cover"
-                                    />
-                                </View>
-
-                                {/* Product Details */}
-                                <View style={styles.productDetails}>
-                                    <Text style={[styles.productName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                        {order.productName}
-                                    </Text>
-
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.emoji}>📦</Text>
-                                        <Text style={[styles.detailText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                            Box: <Text style={{ color: theme.text }}>{order.box}</Text>
+                                    <View style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}>
+                                        <Ionicons name={statusConfig.icon as any} size={14} color={statusConfig.textColor} />
+                                        <Text style={[styles.statusText, { color: statusConfig.textColor, fontFamily: Fonts.medium }]}>
+                                            {statusConfig.label}
                                         </Text>
                                     </View>
+                                </View>
 
-                                    <View style={styles.detailRow}>
-                                        <Text style={styles.emoji}>🎁</Text>
-                                        <Text style={[styles.detailText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                            Wrapper: <Text style={{ color: theme.text }}>{order.wrapper}</Text>
-                                        </Text>
+                                {/* Order Content */}
+                                <View style={styles.orderContent}>
+                                    {/* Product Image */}
+                                    <View style={styles.imageContainer}>
+                                        <Image
+                                            source={{ uri: firstItem.prankImage }}
+                                            style={styles.productImage}
+                                            resizeMode="cover"
+                                        />
                                     </View>
 
-                                    <Text style={[styles.priceText, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                        Qty: {order.quantity} · ₹{order.price}
-                                    </Text>
-                                </View>
-                            </View>
+                                    {/* Product Details */}
+                                    <View style={styles.productDetails}>
+                                        <Text style={[styles.productName, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                                            {firstItem.prankTitle}
+                                        </Text>
 
-                            {/* View Details Button */}
-                            <TouchableOpacity
-                                style={[styles.viewDetailsButton, { backgroundColor: theme.primary }]}
-                                activeOpacity={0.8}
-                                onPress={() => handleViewDetails(order.id)}
-                            >
-                                <Text style={[styles.viewDetailsText, { fontFamily: Fonts.semiBold }]}>
-                                    View Details
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    );
-                })}
+                                        <View style={styles.detailRow}>
+                                            <Text style={styles.emoji}>📦</Text>
+                                            <Text style={[styles.detailText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                                Box: <Text style={{ color: theme.text }}>{firstItem.boxTitle}</Text>
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.detailRow}>
+                                            <Text style={styles.emoji}>🎁</Text>
+                                            <Text style={[styles.detailText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                                Wrapper: <Text style={{ color: theme.text }}>{firstItem.wrapTitle}</Text>
+                                            </Text>
+                                        </View>
+
+                                        <Text style={[styles.priceText, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                                            {order.items.length} {order.items.length === 1 ? 'Item' : 'Items'} · ₹{order.totalCost}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {/* View Details Button */}
+                                <TouchableOpacity
+                                    style={[styles.viewDetailsButton, { backgroundColor: theme.primary }]}
+                                    activeOpacity={0.8}
+                                    onPress={() => handleViewDetails(order.orderId)}
+                                >
+                                    <Text style={[styles.viewDetailsText, { fontFamily: Fonts.semiBold }]}>
+                                        View Details
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        );
+                    })
+                )}
 
                 {/* Bottom spacing */}
                 <View style={styles.bottomSpacer} />
@@ -236,6 +286,43 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 16,
         paddingTop: 8,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 12,
+    },
+    loadingText: {
+        fontSize: 14,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 100,
+        gap: 12,
+    },
+    emptyTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginTop: 16,
+    },
+    emptySubtitle: {
+        fontSize: 14,
+        textAlign: 'center',
+        paddingHorizontal: 32,
+        marginBottom: 24,
+    },
+    shopButton: {
+        paddingHorizontal: 32,
+        paddingVertical: 14,
+        borderRadius: 24,
+    },
+    shopButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '600',
     },
     orderCard: {
         borderRadius: 16,
