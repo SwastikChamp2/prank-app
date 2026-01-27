@@ -1,5 +1,5 @@
 // pages/Profile.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -11,10 +11,15 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,
+    ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../constants/theme';
+import { auth, db } from '../../config/firebase.config';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const Profile = () => {
     const colorScheme = useColorScheme();
@@ -22,10 +27,53 @@ const Profile = () => {
     const router = useRouter();
 
     const [isEditing, setIsEditing] = useState(false);
-    const [username, setUsername] = useState('Rohan Kumar');
-    const [gender, setGender] = useState<'Male' | 'Female' | 'Others'>('Male');
+    const [username, setUsername] = useState('');
+    const [gender, setGender] = useState<'Male' | 'Female' | 'Others'>('Others');
     const [showGenderDropdown, setShowGenderDropdown] = useState(false);
-    const phoneNumber = '+91 99887 76543';
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [userId, setUserId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    // Fetch user data from Firebase
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setUserId(user.uid);
+                await fetchUserData(user.uid);
+                console.log(user.uid);
+            } else {
+                setLoading(false);
+                Alert.alert('Error', 'No user logged in');
+                router.back();
+            }
+        });
+
+
+
+        return () => unsubscribe();
+    }, []);
+
+    const fetchUserData = async (uid: string) => {
+        try {
+            const userDocRef = doc(db, 'users', uid);
+            const userDoc = await getDoc(userDocRef);
+
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                setUsername(userData.username || '');
+                setGender(userData.gender || 'Others');
+                setPhoneNumber(userData.phoneNumber || '');
+            } else {
+                Alert.alert('Error', 'User data not found');
+            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            Alert.alert('Error', 'Failed to load profile data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const getProfileImage = () => {
         switch (gender) {
@@ -41,24 +89,82 @@ const Profile = () => {
     };
 
     const handleBack = () => {
-        router.back();
+        if (isEditing) {
+            Alert.alert(
+                'Discard Changes?',
+                'You have unsaved changes. Are you sure you want to go back?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Discard',
+                        style: 'destructive',
+                        onPress: () => router.back()
+                    },
+                ]
+            );
+        } else {
+            router.back();
+        }
     };
 
     const handleEditToggle = () => {
+        if (isEditing) {
+            // Cancel editing - reload original data
+            if (userId) {
+                fetchUserData(userId);
+            }
+            setShowGenderDropdown(false);
+        }
         setIsEditing(!isEditing);
     };
 
-    const handleSaveChanges = () => {
-        console.log('Saving changes:', username, gender);
-        setIsEditing(false);
-        setShowGenderDropdown(false);
-        // Here you would typically save to backend/state management
+    const handleSaveChanges = async () => {
+        if (!userId) {
+            Alert.alert('Error', 'User not authenticated');
+            return;
+        }
+
+        if (!username.trim()) {
+            Alert.alert('Validation Error', 'Username cannot be empty');
+            return;
+        }
+
+        setSaving(true);
+
+        try {
+            const userDocRef = doc(db, 'users', userId);
+            await updateDoc(userDocRef, {
+                username: username.trim(),
+                gender: gender,
+                updatedAt: serverTimestamp(),
+            });
+
+            Alert.alert('Success', 'Profile updated successfully');
+            setIsEditing(false);
+            setShowGenderDropdown(false);
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            Alert.alert('Error', 'Failed to update profile. Please try again.');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleGenderSelect = (selectedGender: 'Male' | 'Female' | 'Others') => {
         setGender(selectedGender);
         setShowGenderDropdown(false);
     };
+
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent, { backgroundColor: theme.background }]}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={[styles.loadingText, { color: theme.text, fontFamily: Fonts.regular }]}>
+                    Loading profile...
+                </Text>
+            </View>
+        );
+    }
 
     return (
         <KeyboardAvoidingView
@@ -72,11 +178,12 @@ const Profile = () => {
                         <Ionicons name="chevron-back" size={28} color={theme.text} />
                     </TouchableOpacity>
                     <Text style={[styles.headerTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
-                        Edit Profile
+                        {isEditing ? 'Edit Profile' : 'Profile'}
                     </Text>
                     <TouchableOpacity
                         style={styles.editButton}
                         onPress={handleEditToggle}
+                        disabled={saving}
                     >
                         <Ionicons
                             name={isEditing ? "close" : "create-outline"}
@@ -147,6 +254,11 @@ const Profile = () => {
                                 placeholderTextColor={theme.grey}
                             />
                         </View>
+                        {isEditing && (
+                            <Text style={[styles.helperText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                Phone number cannot be changed
+                            </Text>
+                        )}
                     </View>
 
                     {/* Gender Field */}
@@ -219,13 +331,21 @@ const Profile = () => {
                 {isEditing && (
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity
-                            style={[styles.saveButton, { backgroundColor: theme.primary }]}
+                            style={[
+                                styles.saveButton,
+                                { backgroundColor: saving ? theme.grey : theme.primary }
+                            ]}
                             activeOpacity={0.8}
                             onPress={handleSaveChanges}
+                            disabled={saving}
                         >
-                            <Text style={[styles.saveButtonText, { fontFamily: Fonts.semiBold }]}>
-                                Save Changes
-                            </Text>
+                            {saving ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={[styles.saveButtonText, { fontFamily: Fonts.semiBold }]}>
+                                    Save Changes
+                                </Text>
+                            )}
                         </TouchableOpacity>
                     </View>
                 )}
@@ -237,6 +357,14 @@ const Profile = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+    },
+    centerContent: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 12,
+        fontSize: 16,
     },
     header: {
         flexDirection: 'row',
@@ -303,6 +431,11 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         paddingVertical: 0,
+    },
+    helperText: {
+        fontSize: 12,
+        marginTop: 6,
+        marginLeft: 16,
     },
     dropdownContainer: {
         marginTop: 8,

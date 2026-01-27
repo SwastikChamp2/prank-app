@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Colors, Fonts } from '../../constants/theme';
+import { saveAddress } from '../../services/addressService';
 
 const AddAddress = () => {
     const colorScheme = useColorScheme();
@@ -49,6 +50,7 @@ const AddAddress = () => {
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
     const [isMapReady, setIsMapReady] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         getCurrentLocation();
@@ -316,21 +318,52 @@ const AddAddress = () => {
         );
     };
 
-    const handleConfirm = () => {
-        if (isFormValid()) {
-            console.log('Address saved:', {
-                addressLabel,
-                buildingName,
-                streetName,
-                pincode,
-                flatNumber,
-                phoneNumber,
-                firstName,
-                lastName,
-                fullAddress: selectedAddress,
-                coordinates: markerCoordinate,
-            });
-            router.back();
+    const handleConfirm = async () => {
+        if (!isFormValid()) {
+            Alert.alert('Error', 'Please fill in all required fields');
+            return;
+        }
+
+        setIsSaving(true);
+
+        try {
+            // Prepare address data
+            const addressData = {
+                addressLabel: addressLabel.trim(),
+                buildingName: buildingName.trim(),
+                streetName: streetName.trim(),
+                pincode: pincode.trim(),
+                flatNumber: flatNumber.trim(),
+                phoneNumber: phoneNumber.trim(),
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                autofetchedAddress: selectedAddress,
+                latitude: markerCoordinate.latitude,
+                longitude: markerCoordinate.longitude,
+            };
+
+            // Save to Firebase
+            await saveAddress(addressData);
+
+            Alert.alert(
+                'Success',
+                'Address saved successfully!',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => router.back()
+                    }
+                ]
+            );
+        } catch (error) {
+            console.error('Error saving address:', error);
+            Alert.alert(
+                'Error',
+                'Failed to save address. Please try again.',
+                [{ text: 'OK' }]
+            );
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -509,7 +542,6 @@ const AddAddress = () => {
                         />
                     </View>
 
-
                     <View style={styles.inputRow}>
                         <View style={styles.inputContainer}>
                             <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
@@ -668,16 +700,20 @@ const AddAddress = () => {
                         styles.confirmButton,
                         {
                             backgroundColor: isFormValid() ? theme.primary : theme.grey,
-                            opacity: isFormValid() ? 1 : 0.5
+                            opacity: (isFormValid() && !isSaving) ? 1 : 0.5
                         }
                     ]}
                     onPress={handleConfirm}
-                    disabled={!isFormValid()}
+                    disabled={!isFormValid() || isSaving}
                     activeOpacity={0.8}
                 >
-                    <Text style={[styles.confirmButtonText, { fontFamily: Fonts.semiBold }]}>
-                        Confirm
-                    </Text>
+                    {isSaving ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                        <Text style={[styles.confirmButtonText, { fontFamily: Fonts.semiBold }]}>
+                            Confirm
+                        </Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
