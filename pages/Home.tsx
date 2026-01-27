@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import Footer from '@/components/Footer/Footer';
 import { fetchPrankCategories } from '../services/PrankCategoryService';
+import { db, auth } from '../config/firebase.config';
+import { doc, getDoc } from 'firebase/firestore';
 
 const { width } = Dimensions.get('window');
 
@@ -33,10 +35,44 @@ const Home = () => {
   const [categories, setCategories] = useState<CategoryCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userName, setUserName] = useState('User');
+  const [profileImage, setProfileImage] = useState(require('../assets/images/profile.jpg'));
 
   useEffect(() => {
+    loadUserData();
     loadCategories();
   }, []);
+
+  const loadUserData = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          // Get first name from username
+          if (userData.username) {
+            const firstName = userData.username.split(' ')[0];
+            setUserName(firstName);
+          }
+          // Set profile image based on gender
+          if (userData.gender) {
+            if (userData.gender === 'Male') {
+              setProfileImage(require('../assets/images/profile.jpg'));
+            } else if (userData.gender === 'Female') {
+              setProfileImage(require('../assets/images/profile-2.jpg'));
+            } else if (userData.gender === 'Others') {
+              setProfileImage(require('../assets/images/profile-3.png'));
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error loading user data:', err);
+    }
+  };
 
   const loadCategories = async () => {
     try {
@@ -69,12 +105,12 @@ const Home = () => {
       <View style={styles.header}>
         <View style={styles.userInfo}>
           <Image
-            source={require('../assets/images/profile.jpg')}
+            source={profileImage}
             style={styles.avatar}
           />
           <View>
             <Text style={[styles.greeting, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-              Hi, Jonathan
+              Hi, {userName}
             </Text>
             <Text style={[styles.subGreeting, { color: theme.grey, fontFamily: Fonts.regular }]}>
               Let's go pranking
