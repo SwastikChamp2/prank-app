@@ -179,22 +179,11 @@ const SelectBox: React.FC = () => {
                     <Ionicons name="chevron-back" size={24} color={theme.text} />
                 </TouchableOpacity>
 
-                <View style={[styles.searchContainer, { backgroundColor: theme.searchBg }]}>
-                    <Ionicons name="search" size={20} color={theme.grey} style={styles.searchIcon} />
-                    <TextInput
-                        style={[styles.searchInput, { color: theme.text }]}
-                        placeholder="Search Boxes"
-                        placeholderTextColor={theme.grey}
-                    />
-                </View>
-
-                <TouchableOpacity style={styles.filterButton}>
-                    <Ionicons name="options-outline" size={24} color={theme.text} />
-                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>Select Box</Text>
             </View>
 
-            {/* Categories */}
-            <View style={styles.categoriesContainer}>
+            {/* Categories - COMMENTED OUT */}
+            {/* <View style={styles.categoriesContainer}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -225,7 +214,7 @@ const SelectBox: React.FC = () => {
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
-            </View>
+            </View> */}
 
             {/* Loading State */}
             {loading && (
@@ -254,12 +243,28 @@ const SelectBox: React.FC = () => {
                 </View>
             )}
 
-            {/* Boxes Grid */}
+            {/* Boxes Grid with Search and Filter in Scrollable Section */}
             {!loading && !error && (
                 <ScrollView
                     style={styles.boxesContainer}
                     showsVerticalScrollIndicator={false}
                 >
+                    {/* Search Bar and Filter - Moved to Scrollable Section */}
+                    <View style={styles.searchFilterContainer}>
+                        <View style={[styles.searchContainer, { backgroundColor: theme.searchBg }]}>
+                            <Ionicons name="search" size={20} color={theme.grey} style={styles.searchIcon} />
+                            <TextInput
+                                style={[styles.searchInput, { color: theme.text }]}
+                                placeholder="Search Boxes"
+                                placeholderTextColor={theme.grey}
+                            />
+                        </View>
+
+                        <TouchableOpacity style={styles.filterButton}>
+                            <Ionicons name="options-outline" size={24} color={theme.text} />
+                        </TouchableOpacity>
+                    </View>
+
                     {filteredBoxes.length > 0 ? (
                         <>
                             <View style={styles.boxesGrid}>
@@ -320,6 +325,17 @@ const styles = StyleSheet.create({
         height: 40,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontFamily: Fonts.bold,
+        flex: 1,
+    },
+    searchFilterContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingBottom: 16,
+        gap: 12,
     },
     searchContainer: {
         flex: 1,

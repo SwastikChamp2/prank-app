@@ -200,18 +200,11 @@ const SelectWrapScreen: React.FC = () => {
                     <Ionicons name="chevron-back" size={24} color={theme.text} />
                 </TouchableOpacity>
 
-                <View style={[styles.searchContainer, { backgroundColor: theme.searchBg }]}>
-                    <Ionicons name="search" size={20} color={theme.grey} style={styles.searchIcon} />
-                    <TextInput
-                        style={[styles.searchInput, { color: theme.text }]}
-                        placeholder="Search Wraps"
-                        placeholderTextColor={theme.grey}
-                    />
-                </View>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>Select Wrap</Text>
             </View>
 
-            {/* Categories */}
-            <View style={styles.categoriesContainer}>
+            {/* Categories - COMMENTED OUT */}
+            {/* <View style={styles.categoriesContainer}>
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
@@ -242,7 +235,7 @@ const SelectWrapScreen: React.FC = () => {
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
-            </View>
+            </View> */}
 
             {/* Loading State */}
             {loading && (
@@ -271,12 +264,22 @@ const SelectWrapScreen: React.FC = () => {
                 </View>
             )}
 
-            {/* Wraps Grid */}
+            {/* Wraps Grid with Search Bar in Scrollable Section */}
             {!loading && !error && (
                 <ScrollView
                     style={styles.wrapsContainer}
                     showsVerticalScrollIndicator={false}
                 >
+                    {/* Search Bar - Moved to Scrollable Section */}
+                    <View style={[styles.searchContainer, { backgroundColor: theme.searchBg }]}>
+                        <Ionicons name="search" size={20} color={theme.grey} style={styles.searchIcon} />
+                        <TextInput
+                            style={[styles.searchInput, { color: theme.text }]}
+                            placeholder="Search Wraps"
+                            placeholderTextColor={theme.grey}
+                        />
+                    </View>
+
                     {filteredWraps.length > 0 ? (
                         <>
                             <View style={styles.wrapsGrid}>
@@ -343,13 +346,18 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    searchContainer: {
+    headerTitle: {
+        fontSize: 20,
+        fontFamily: Fonts.bold,
         flex: 1,
+    },
+    searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderRadius: 12,
         paddingHorizontal: 12,
         height: 48,
+        marginBottom: 16,
     },
     searchIcon: {
         marginRight: 8,
