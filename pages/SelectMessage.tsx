@@ -48,9 +48,6 @@ const SelectMessage: React.FC = () => {
     const maxModalHeight = Dimensions.get('window').height * 0.7;
 
     const handleContinue = () => {
-        if (!message.trim()) {
-            return;
-        }
         setShowTermsModal(true);
     };
 
@@ -115,7 +112,7 @@ const SelectMessage: React.FC = () => {
                         Add Anonymous Message
                     </Text>
                     <Text style={[styles.descriptionText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                        Write a fun, anonymous message to accompany your prank! Keep it light-hearted and appropriate.
+                        Write a fun, anonymous message to accompany your prank! (Optional) Keep it light-hearted and appropriate.
                     </Text>
                 </View>
 
@@ -172,12 +169,12 @@ const SelectMessage: React.FC = () => {
                         style={[
                             styles.continueButton,
                             {
-                                backgroundColor: message.trim() && !savingToCart ? theme.primary : theme.grey,
-                                opacity: message.trim() && !savingToCart ? 1 : 0.5,
+                                backgroundColor: !savingToCart ? theme.primary : theme.grey,
+                                opacity: !savingToCart ? 1 : 0.5,
                             }
                         ]}
                         onPress={handleContinue}
-                        disabled={!message.trim() || savingToCart}
+                        disabled={savingToCart}
                     >
                         {savingToCart ? (
                             <ActivityIndicator color="#FFFFFF" />
