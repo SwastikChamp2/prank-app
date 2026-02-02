@@ -185,6 +185,25 @@ const OrderDetail = () => {
                     </View>
                 ))}
 
+                {/* Anonymous Messages */}
+                {order.items.some(item => item.message) && (
+                    <View style={[styles.messageCard, { backgroundColor: theme.background }]}>
+                        <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
+                            Anonymous Messages
+                        </Text>
+                        {order.items.map((item, index) => (
+                            item.message && (
+                                <View key={index} style={styles.messageItem}>
+
+                                    <Text style={[styles.messageText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                        "{item.message}"
+                                    </Text>
+                                </View>
+                            )
+                        ))}
+                    </View>
+                )}
+
                 {/* Cost Breakdown */}
                 <View style={[styles.costCard, { backgroundColor: theme.background }]}>
                     <View style={styles.costRow}>
@@ -606,6 +625,34 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
         marginBottom: 4,
+    },
+    messageCard: {
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 3,
+        borderWidth: 1,
+        borderColor: '#F0F0F0',
+    },
+    messageItem: {
+        marginBottom: 12,
+    },
+    messagePrankTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    messageText: {
+        fontSize: 13,
+        lineHeight: 18,
+        fontStyle: 'italic',
     },
     bottomSpacer: {
         height: 20,

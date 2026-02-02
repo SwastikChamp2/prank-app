@@ -30,6 +30,7 @@ export interface OrderItem {
     wrapImage?: string;
     wrapPrice: number;
     totalPrice: number;
+    message?: string;
 }
 
 export interface OrderData {

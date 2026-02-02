@@ -11,6 +11,7 @@ import {
     Dimensions,
     ActivityIndicator,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Colors, Fonts } from '../constants/theme';
@@ -32,6 +33,7 @@ const PrankDetail: React.FC = () => {
     const [prank, setPrank] = useState<Prank | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isVideo, setIsVideo] = useState<boolean>(false);
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
@@ -47,6 +49,9 @@ const PrankDetail: React.FC = () => {
                 const fetchedPrank = await fetchPrankById(prankId);
                 if (fetchedPrank) {
                     setPrank(fetchedPrank);
+                    // Check if coverImage URL contains 'video' (case insensitive)
+                    const hasVideo = /video/i.test(fetchedPrank.coverImage);
+                    setIsVideo(hasVideo);
                 } else {
                     setError('Prank not found');
                 }
@@ -128,13 +133,24 @@ const PrankDetail: React.FC = () => {
             {/* Content */}
             {!loading && !error && prank && (
                 <>
-                    {/* Header with Image */}
+                    {/* Header with Image or Video */}
                     <View style={styles.imageSection}>
-                        <Image
-                            source={{ uri: prank.coverImage }}
-                            style={styles.productImage}
-                            resizeMode="cover"
-                        />
+                        {isVideo ? (
+                            <Video
+                                source={{ uri: prank.coverImage }}
+                                style={styles.productImage}
+                                resizeMode={ResizeMode.COVER}
+                                shouldPlay
+                                isLooping
+                                isMuted
+                            />
+                        ) : (
+                            <Image
+                                source={{ uri: prank.coverImage }}
+                                style={styles.productImage}
+                                resizeMode="cover"
+                            />
+                        )}
 
                         {/* Header Overlay */}
                         <View style={styles.headerOverlay}>

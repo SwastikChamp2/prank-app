@@ -158,36 +158,26 @@ const SelectWrapScreen: React.FC = () => {
         setSelectedWrapImage(wrapImage);
     };
 
-    const handleAddToCart = async () => {
-        try {
-            setSavingToCart(true);
-            const cartItem: CartItem = {
+    const handleAddToCart = () => {
+        // Navigate to select message page instead of directly to cart
+        router.push({
+            pathname: '/select-message',
+            params: {
                 prankId,
                 prankTitle,
-                prankPrice: parseInt(prankPrice),
+                prankPrice,
                 prankImage,
+                quantity,
                 boxId,
                 boxTitle,
-                boxPrice: boxPrice ? parseInt(boxPrice) : null,
+                boxPrice: boxPrice || '0',
                 boxImage,
                 wrapId: selectedWrapId || '',
                 wrapTitle: selectedWrapName,
-                wrapPrice: selectedWrapPrice ? parseInt(selectedWrapPrice) : null,
+                wrapPrice: selectedWrapPrice || '0',
                 wrapImage: selectedWrapImage,
-            };
-
-            const success = await updateCartItem(cartItem);
-            if (success) {
-                router.push('/cart');
-            } else {
-                setError('Failed to add to cart');
-            }
-        } catch (err) {
-            console.error('Error adding to cart:', err);
-            setError('Failed to add to cart');
-        } finally {
-            setSavingToCart(false);
-        }
+            },
+        });
     };
 
     return (

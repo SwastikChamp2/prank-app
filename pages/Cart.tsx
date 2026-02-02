@@ -208,7 +208,8 @@ const Cart = () => {
                 wrapTitle: item.wrapTitle,
                 wrapImage: item.wrapImage,
                 wrapPrice: item.wrapPrice || 0,
-                totalPrice: item.prankPrice + (item.boxPrice || 0) + (item.wrapPrice || 0)
+                totalPrice: item.prankPrice + (item.boxPrice || 0) + (item.wrapPrice || 0),
+                message: item.message || '',
             }));
 
             // Get payment method name
@@ -498,6 +499,34 @@ const Cart = () => {
                                         </Text>
                                     </View>
                                 </View>
+
+                                {/* Message Item */}
+                                {item.message && (
+                                    <View style={[styles.messageItem, { backgroundColor: theme.lightOrange }]}>
+                                        <View style={styles.messageIconContainer}>
+                                            <Ionicons name="mail" size={24} color={theme.primary} />
+                                        </View>
+                                        <View style={styles.messageDetails}>
+                                            <Text
+                                                style={[
+                                                    styles.messageLabel,
+                                                    { color: theme.text, fontFamily: Fonts.semiBold },
+                                                ]}
+                                            >
+                                                Anonymous Message
+                                            </Text>
+                                            <Text
+                                                style={[
+                                                    styles.messageText,
+                                                    { color: theme.grey, fontFamily: Fonts.regular },
+                                                ]}
+                                                numberOfLines={3}
+                                            >
+                                                "{item.message}"
+                                            </Text>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
                         ))
                     )}
@@ -1281,6 +1310,36 @@ const styles = StyleSheet.create({
         backgroundColor: '#F79E1B',
         position: 'absolute',
         right: 8,
+    },
+
+    messageItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 16,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        marginTop: 8,
+        gap: 12,
+    },
+    messageIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    messageDetails: {
+        flex: 1,
+    },
+    messageLabel: {
+        fontSize: 14,
+        marginBottom: 4,
+    },
+    messageText: {
+        fontSize: 13,
+        lineHeight: 18,
+        fontStyle: 'italic',
     },
     paymentOptionDetails: {
         flex: 1,

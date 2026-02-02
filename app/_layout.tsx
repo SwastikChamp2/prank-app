@@ -116,6 +116,12 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="select-message"
+                options={{
+                  animation: 'default',
+                }}
+              />
+              <Stack.Screen
                 name="cart"
                 options={{
                   animation: 'slide_from_right',

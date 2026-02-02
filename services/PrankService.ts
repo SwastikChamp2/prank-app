@@ -62,7 +62,7 @@ export const fetchPranksByCategory = async (categoryName: string): Promise<Prank
                 id: data.id,
                 name: data.prankTitle,
                 price: data.price.toString(),
-                image: data.coverImage,
+                image: data.previewImage,
             };
         });
 
