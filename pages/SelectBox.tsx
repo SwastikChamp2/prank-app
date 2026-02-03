@@ -16,6 +16,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Footer from '../components/Footer/Footer';
 import { Colors, Fonts } from '../constants/theme';
 import { fetchAllBoxes, BoxCard } from '../services/BoxService';
+import { updateCartItem, CartItem } from '../services/CartService';
 
 // Box Card Component
 type BoxCardProps = {
@@ -86,6 +87,14 @@ const SelectBox: React.FC = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
+    const editMode = params.editMode === 'true';
+    const currentBoxId = params.currentBoxId as string;
+    const wrapId = params.wrapId as string;
+    const wrapTitle = params.wrapTitle as string;
+    const wrapPrice = params.wrapPrice as string;
+    const wrapImage = params.wrapImage as string;
+    const message = params.message as string;
+
     const categories = ['All', 'Latest', 'Most Popular', 'Cheapest'];
 
     useEffect(() => {
@@ -101,15 +110,23 @@ const SelectBox: React.FC = () => {
             setLoading(true);
             setError(null);
             const fetchedBoxes = await fetchAllBoxes();
-            // Sort by price: cheapest first
             const sortedBoxes = [...fetchedBoxes].sort((a, b) => {
                 const priceA = a.price ? parseInt(a.price) : 0;
                 const priceB = b.price ? parseInt(b.price) : 0;
                 return priceA - priceB;
             });
             setBoxes(sortedBoxes);
-            // Select the cheapest box by default
-            if (sortedBoxes.length > 0) {
+
+            // Select current box if in edit mode, otherwise select cheapest
+            if (editMode && currentBoxId) {
+                const currentBox = sortedBoxes.find(box => box.id === currentBoxId);
+                if (currentBox) {
+                    setSelectedBoxId(currentBox.id);
+                    setSelectedBoxName(currentBox.name);
+                    setSelectedBoxPrice(currentBox.price);
+                    setSelectedBoxImage(currentBox.image);
+                }
+            } else if (sortedBoxes.length > 0) {
                 setSelectedBoxId(sortedBoxes[0].id);
                 setSelectedBoxName(sortedBoxes[0].name);
                 setSelectedBoxPrice(sortedBoxes[0].price);
@@ -152,21 +169,46 @@ const SelectBox: React.FC = () => {
         setSelectedBoxImage(boxImage);
     };
 
-    const handleNavigateToWrap = () => {
-        router.push({
-            pathname: '/select-wrap',
-            params: {
+    const handleNavigateToWrap = async () => {
+        if (editMode) {
+            // In edit mode, update cart and go back to cart
+            const cartItem: CartItem = {
                 prankId,
                 prankTitle,
-                prankPrice,
+                prankPrice: parseInt(prankPrice),
                 prankImage,
-                quantity,
-                boxId: selectedBoxId,
+                boxId: selectedBoxId!,
                 boxTitle: selectedBoxName,
-                boxPrice: selectedBoxPrice || '0',
+                boxPrice: selectedBoxPrice ? parseInt(selectedBoxPrice) : null,
                 boxImage: selectedBoxImage,
-            },
-        });
+                wrapId: wrapId || '',
+                wrapTitle: wrapTitle,
+                wrapPrice: wrapPrice ? parseInt(wrapPrice) : null,
+                wrapImage: wrapImage,
+                message: message || '',
+            };
+
+            const success = await updateCartItem(cartItem);
+            if (success) {
+                router.push('/cart');
+            }
+        } else {
+            // Normal flow
+            router.push({
+                pathname: '/select-wrap',
+                params: {
+                    prankId,
+                    prankTitle,
+                    prankPrice,
+                    prankImage,
+                    quantity,
+                    boxId: selectedBoxId,
+                    boxTitle: selectedBoxName,
+                    boxPrice: selectedBoxPrice || '0',
+                    boxImage: selectedBoxImage,
+                },
+            });
+        }
     };
 
     return (

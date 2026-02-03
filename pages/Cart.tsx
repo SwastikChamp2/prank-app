@@ -37,6 +37,8 @@ const Cart = () => {
     const [loading, setLoading] = useState(true);
     const [defaultAddress, setDefaultAddress] = useState<AddressData | null>(null);
     const [processingOrder, setProcessingOrder] = useState(false);
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [editingItemType, setEditingItemType] = useState<'prank' | 'box' | 'wrap' | 'message' | null>(null);
 
     const maxPaymentDrawerHeight = Dimensions.get('window').height * 0.7;
 
@@ -123,6 +125,87 @@ const Cart = () => {
                 },
             ]
         );
+    };
+
+    const handleEditItem = (prankId: string, itemType: 'prank' | 'box' | 'wrap' | 'message', item: CartItem) => {
+        setEditingItemId(prankId);
+        setEditingItemType(itemType);
+
+        if (itemType === 'prank') {
+            router.push({
+                pathname: '/select-prank',  // Changed from '/select-pranks'
+                params: {
+                    editMode: 'true',
+                    prankId: item.prankId,
+                    boxId: item.boxId,
+                    boxTitle: item.boxTitle,
+                    boxPrice: item.boxPrice?.toString() || '0',
+                    boxImage: item.boxImage,
+                    wrapId: item.wrapId,
+                    wrapTitle: item.wrapTitle,
+                    wrapPrice: item.wrapPrice?.toString() || '0',
+                    wrapImage: item.wrapImage,
+                    message: item.message || '',
+                }
+            });
+        } else if (itemType === 'box') {
+            router.push({
+                pathname: '/select-box',
+                params: {
+                    editMode: 'true',
+                    prankId: item.prankId,
+                    prankTitle: item.prankTitle,
+                    prankPrice: item.prankPrice.toString(),
+                    prankImage: item.prankImage,
+                    quantity: '1',
+                    currentBoxId: item.boxId,
+                    wrapId: item.wrapId,
+                    wrapTitle: item.wrapTitle,
+                    wrapPrice: item.wrapPrice?.toString() || '0',
+                    wrapImage: item.wrapImage,
+                    message: item.message || '',
+                }
+            });
+        } else if (itemType === 'wrap') {
+            router.push({
+                pathname: '/select-wrap',
+                params: {
+                    editMode: 'true',
+                    prankId: item.prankId,
+                    prankTitle: item.prankTitle,
+                    prankPrice: item.prankPrice.toString(),
+                    prankImage: item.prankImage,
+                    quantity: '1',
+                    boxId: item.boxId,
+                    boxTitle: item.boxTitle,
+                    boxPrice: item.boxPrice?.toString() || '0',
+                    boxImage: item.boxImage,
+                    currentWrapId: item.wrapId,
+                    message: item.message || '',
+                }
+            });
+        } else if (itemType === 'message') {
+            router.push({
+                pathname: '/select-message',
+                params: {
+                    editMode: 'true',
+                    prankId: item.prankId,
+                    prankTitle: item.prankTitle,
+                    prankPrice: item.prankPrice.toString(),
+                    prankImage: item.prankImage,
+                    quantity: '1',
+                    boxId: item.boxId,
+                    boxTitle: item.boxTitle,
+                    boxPrice: item.boxPrice?.toString() || '0',
+                    boxImage: item.boxImage,
+                    wrapId: item.wrapId,
+                    wrapTitle: item.wrapTitle,
+                    wrapPrice: item.wrapPrice?.toString() || '0',
+                    wrapImage: item.wrapImage,
+                    currentMessage: item.message || '',
+                }
+            });
+        }
     };
 
     const handlePaymentSelect = (method: string) => {
@@ -406,6 +489,7 @@ const Cart = () => {
                                 </View>
 
                                 {/* Prank Item */}
+                                {/* Prank Item */}
                                 <View style={[styles.productItem, { backgroundColor: theme.background }]}>
                                     <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
                                         <Image
@@ -432,8 +516,15 @@ const Cart = () => {
                                             ₹ {item.prankPrice}
                                         </Text>
                                     </View>
+                                    <TouchableOpacity
+                                        style={styles.editIconButton}
+                                        onPress={() => handleEditItem(item.prankId, 'prank', item)}
+                                    >
+                                        <Ionicons name="create-outline" size={20} color={theme.primary} />
+                                    </TouchableOpacity>
                                 </View>
 
+                                {/* Box Item */}
                                 {/* Box Item */}
                                 <View style={[styles.productItem, { backgroundColor: theme.background }]}>
                                     <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
@@ -465,8 +556,15 @@ const Cart = () => {
                                             ₹ {item.boxPrice || 0}
                                         </Text>
                                     </View>
+                                    <TouchableOpacity
+                                        style={styles.editIconButton}
+                                        onPress={() => handleEditItem(item.prankId, 'box', item)}
+                                    >
+                                        <Ionicons name="create-outline" size={20} color={theme.primary} />
+                                    </TouchableOpacity>
                                 </View>
 
+                                {/* Wrap Item */}
                                 {/* Wrap Item */}
                                 <View style={[styles.productItem, { backgroundColor: theme.background }]}>
                                     <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
@@ -498,10 +596,17 @@ const Cart = () => {
                                             ₹ {item.wrapPrice || 0}
                                         </Text>
                                     </View>
+                                    <TouchableOpacity
+                                        style={styles.editIconButton}
+                                        onPress={() => handleEditItem(item.prankId, 'wrap', item)}
+                                    >
+                                        <Ionicons name="create-outline" size={20} color={theme.primary} />
+                                    </TouchableOpacity>
                                 </View>
 
                                 {/* Message Item */}
-                                {item.message && (
+                                {/* Message Item */}
+                                {item.message ? (
                                     <View style={[styles.messageItem, { backgroundColor: theme.lightOrange }]}>
                                         <View style={styles.messageIconContainer}>
                                             <Ionicons name="mail" size={24} color={theme.primary} />
@@ -525,7 +630,23 @@ const Cart = () => {
                                                 "{item.message}"
                                             </Text>
                                         </View>
+                                        <TouchableOpacity
+                                            style={styles.editIconButton}
+                                            onPress={() => handleEditItem(item.prankId, 'message', item)}
+                                        >
+                                            <Ionicons name="create-outline" size={20} color={theme.primary} />
+                                        </TouchableOpacity>
                                     </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.addMessageButton, { borderColor: theme.primary, backgroundColor: theme.lightOrange }]}
+                                        onPress={() => handleEditItem(item.prankId, 'message', item)}
+                                    >
+                                        <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
+                                        <Text style={[styles.addMessageText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                                            Add Anonymous Message
+                                        </Text>
+                                    </TouchableOpacity>
                                 )}
                             </View>
                         ))
@@ -985,6 +1106,26 @@ const styles = StyleSheet.create({
     editButton: {
         fontSize: 16,
         fontWeight: '500',
+    },
+    editIconButton: {
+        padding: 8,
+        marginLeft: 8,
+    },
+    addMessageButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        marginTop: 8,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        gap: 8,
+    },
+    addMessageText: {
+        fontSize: 14,
+        fontWeight: '600',
     },
     loadingContainer: {
         paddingVertical: 40,

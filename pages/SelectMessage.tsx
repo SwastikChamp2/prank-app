@@ -40,7 +40,10 @@ const SelectMessage: React.FC = () => {
     const wrapPrice = params.wrapPrice as string;
     const wrapImage = params.wrapImage as string;
 
-    const [message, setMessage] = useState('');
+    const editMode = params.editMode === 'true';
+    const currentMessage = params.currentMessage as string;
+
+    const [message, setMessage] = useState(currentMessage || '');
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
     const [savingToCart, setSavingToCart] = useState(false);

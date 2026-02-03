@@ -16,6 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import Footer from '../components/Footer/Footer';
 import { Colors, Fonts } from '../constants/theme';
 import { fetchPranksByCategory, fetchAllPranks, PrankCard } from '../services/PrankService';
+import { updateCartItem, CartItem, removeCartItem } from '../services/CartService';
+
+
 
 // Product Card Component
 type ProductCardProps = {
@@ -24,17 +27,14 @@ type ProductCardProps = {
     price: string;
     image: string;
     theme: typeof Colors.light;
+    onPress: () => void;
 };
 
-const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, image, theme }) => {
-    const router = useRouter();
+const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, image, theme, onPress }) => {
     return (
         <TouchableOpacity
             style={[styles.productCard, { backgroundColor: theme.white }]}
-            onPress={() => router.push({
-                pathname: '/prank-detail',
-                params: { prankId: id }
-            })}
+            onPress={onPress}
         >
             <View style={styles.imageContainer}>
                 <Image
@@ -65,6 +65,19 @@ const HomeScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+    const [savingToCart, setSavingToCart] = useState(false);
+
+    const editMode = params.editMode === 'true';
+    const currentPrankId = params.prankId as string;
+    const boxId = params.boxId as string;
+    const boxTitle = params.boxTitle as string;
+    const boxPrice = params.boxPrice as string;
+    const boxImage = params.boxImage as string;
+    const wrapId = params.wrapId as string;
+    const wrapTitle = params.wrapTitle as string;
+    const wrapPrice = params.wrapPrice as string;
+    const wrapImage = params.wrapImage as string;
+    const message = params.message as string;
 
     const categories = ['All', 'Latest', 'Most Popular', 'Cheapest'];
 
@@ -75,6 +88,55 @@ const HomeScreen: React.FC = () => {
     useEffect(() => {
         filterPranks();
     }, [pranks, selectedCategory]);
+
+    const handlePrankSelect = async (prank: PrankCard) => {
+        if (editMode) {
+            // In edit mode, we need to remove the old item and add the updated one
+            setSavingToCart(true);
+            try {
+                // First, remove the old cart item with the old prankId
+                const removeSuccess = await removeCartItem(currentPrankId);
+
+                if (!removeSuccess) {
+                    console.error('Failed to remove old cart item');
+                    setSavingToCart(false);
+                    return;
+                }
+
+                // Then add the new cart item with the new prank
+                const cartItem: CartItem = {
+                    prankId: prank.id,
+                    prankTitle: prank.name,
+                    prankPrice: parseInt(prank.price),
+                    prankImage: prank.image,
+                    boxId: boxId,
+                    boxTitle: boxTitle,
+                    boxPrice: boxPrice ? parseInt(boxPrice) : null,
+                    boxImage: boxImage,
+                    wrapId: wrapId || '',
+                    wrapTitle: wrapTitle,
+                    wrapPrice: wrapPrice ? parseInt(wrapPrice) : null,
+                    wrapImage: wrapImage,
+                    message: message || '',
+                };
+
+                const success = await updateCartItem(cartItem);
+                if (success) {
+                    router.push('/cart');
+                }
+            } catch (err) {
+                console.error('Error updating cart:', err);
+            } finally {
+                setSavingToCart(false);
+            }
+        } else {
+            // Normal flow - navigate to prank detail
+            router.push({
+                pathname: '/prank-detail',
+                params: { prankId: prank.id }
+            });
+        }
+    };
 
     const loadPranks = async () => {
         try {
@@ -216,6 +278,7 @@ const HomeScreen: React.FC = () => {
                                     price={prank.price}
                                     image={prank.image}
                                     theme={theme}
+                                    onPress={() => handlePrankSelect(prank)}
                                 />
                             ))}
                         </View>
@@ -231,6 +294,18 @@ const HomeScreen: React.FC = () => {
 
             {/* Footer */}
             <Footer />
+
+            {/* Loading Overlay for Edit Mode */}
+            {savingToCart && (
+                <View style={styles.loadingOverlay}>
+                    <View style={styles.loadingBox}>
+                        <ActivityIndicator size="large" color={theme.primary} />
+                        <Text style={[styles.loadingOverlayText, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                            Updating cart...
+                        </Text>
+                    </View>
+                </View>
+            )}
         </View>
     );
 };
@@ -380,6 +455,30 @@ const styles = StyleSheet.create({
     productPrice: {
         fontSize: 16,
         fontFamily: Fonts.bold,
+    },
+
+
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 1000,
+    },
+    loadingBox: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 24,
+        alignItems: 'center',
+        minWidth: 200,
+    },
+    loadingOverlayText: {
+        fontSize: 16,
+        marginTop: 12,
     },
 });
 

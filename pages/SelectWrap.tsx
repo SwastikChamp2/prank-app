@@ -18,6 +18,7 @@ import { Colors, Fonts } from '../constants/theme';
 import { fetchAllWraps, WrapCard } from '../services/WrapService';
 import { updateCartItem, CartItem } from '../services/CartService';
 
+
 // Wrap Card Component
 type WrapCardProps = {
     id: string;
@@ -92,6 +93,10 @@ const SelectWrapScreen: React.FC = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
 
+    const editMode = params.editMode === 'true';
+    const currentWrapId = params.currentWrapId as string;
+    const message = params.message as string;
+
     const categories = ['All', 'Latest', 'Most Popular', 'Cheapest'];
 
     useEffect(() => {
@@ -107,15 +112,23 @@ const SelectWrapScreen: React.FC = () => {
             setLoading(true);
             setError(null);
             const fetchedWraps = await fetchAllWraps();
-            // Sort by price: cheapest first
             const sortedWraps = [...fetchedWraps].sort((a, b) => {
                 const priceA = a.price ? parseInt(a.price) : 0;
                 const priceB = b.price ? parseInt(b.price) : 0;
                 return priceA - priceB;
             });
             setWraps(sortedWraps);
-            // Select the cheapest wrap by default
-            if (sortedWraps.length > 0) {
+
+            // Select current wrap if in edit mode, otherwise select cheapest
+            if (editMode && currentWrapId) {
+                const currentWrap = sortedWraps.find(wrap => wrap.id === currentWrapId);
+                if (currentWrap) {
+                    setSelectedWrapId(currentWrap.id);
+                    setSelectedWrapName(currentWrap.name);
+                    setSelectedWrapPrice(currentWrap.price);
+                    setSelectedWrapImage(currentWrap.image);
+                }
+            } else if (sortedWraps.length > 0) {
                 setSelectedWrapId(sortedWraps[0].id);
                 setSelectedWrapName(sortedWraps[0].name);
                 setSelectedWrapPrice(sortedWraps[0].price);
@@ -158,26 +171,57 @@ const SelectWrapScreen: React.FC = () => {
         setSelectedWrapImage(wrapImage);
     };
 
-    const handleAddToCart = () => {
-        // Navigate to select message page instead of directly to cart
-        router.push({
-            pathname: '/select-message',
-            params: {
-                prankId,
-                prankTitle,
-                prankPrice,
-                prankImage,
-                quantity,
-                boxId,
-                boxTitle,
-                boxPrice: boxPrice || '0',
-                boxImage,
-                wrapId: selectedWrapId || '',
-                wrapTitle: selectedWrapName,
-                wrapPrice: selectedWrapPrice || '0',
-                wrapImage: selectedWrapImage,
-            },
-        });
+    const handleAddToCart = async () => {
+        if (editMode) {
+            // In edit mode, update cart and go back to cart
+            setSavingToCart(true);
+            try {
+                const cartItem: CartItem = {
+                    prankId,
+                    prankTitle,
+                    prankPrice: parseInt(prankPrice),
+                    prankImage,
+                    boxId,
+                    boxTitle,
+                    boxPrice: boxPrice ? parseInt(boxPrice) : null,
+                    boxImage,
+                    wrapId: selectedWrapId || '',
+                    wrapTitle: selectedWrapName,
+                    wrapPrice: selectedWrapPrice ? parseInt(selectedWrapPrice) : null,
+                    wrapImage: selectedWrapImage,
+                    message: message || '',
+                };
+
+                const success = await updateCartItem(cartItem);
+                if (success) {
+                    router.push('/cart');
+                }
+            } catch (err) {
+                console.error('Error updating cart:', err);
+            } finally {
+                setSavingToCart(false);
+            }
+        } else {
+            // Normal flow - navigate to select message
+            router.push({
+                pathname: '/select-message',
+                params: {
+                    prankId,
+                    prankTitle,
+                    prankPrice,
+                    prankImage,
+                    quantity,
+                    boxId,
+                    boxTitle,
+                    boxPrice: boxPrice || '0',
+                    boxImage,
+                    wrapId: selectedWrapId || '',
+                    wrapTitle: selectedWrapName,
+                    wrapPrice: selectedWrapPrice || '0',
+                    wrapImage: selectedWrapImage,
+                },
+            });
+        }
     };
 
     return (
