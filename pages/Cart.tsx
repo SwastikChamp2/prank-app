@@ -16,11 +16,11 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import Footer from '../components/Footer/Footer';
 import { getCartItems, getCartTotal, clearCart, removeCartItem, CartItem } from '../services/CartService';
-import { ensureDefaultAddress, AddressData } from '../services/addressService';
 import { createOrder, OrderItem } from '../services/orderService';
 
 const Cart = () => {
@@ -35,20 +35,32 @@ const Cart = () => {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [cartTotal, setCartTotal] = useState(0);
     const [loading, setLoading] = useState(true);
-    const [defaultAddress, setDefaultAddress] = useState<AddressData | null>(null);
+    const [deliveryAddress, setDeliveryAddress] = useState<any>(null);
     const [processingOrder, setProcessingOrder] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editingItemType, setEditingItemType] = useState<'prank' | 'box' | 'wrap' | 'message' | null>(null);
 
     const maxPaymentDrawerHeight = Dimensions.get('window').height * 0.7;
 
-    // Load cart items and address when component mounts or gains focus
+    // Load cart items and delivery address when component mounts or gains focus
     useFocusEffect(
         useCallback(() => {
             loadCartData();
-            loadDefaultAddress();
+            loadDeliveryAddress();
         }, [])
     );
+
+    const loadDeliveryAddress = async () => {
+        try {
+            const savedAddress = await AsyncStorage.getItem('tempDeliveryAddress');
+            if (savedAddress) {
+                const addressData = JSON.parse(savedAddress);
+                setDeliveryAddress(addressData);
+            }
+        } catch (error) {
+            console.error('Error loading delivery address:', error);
+        }
+    };
 
     const loadCartData = async () => {
         try {
@@ -61,20 +73,6 @@ const Cart = () => {
             console.error('Error loading cart:', err);
         } finally {
             setLoading(false);
-        }
-    };
-
-    const loadDefaultAddress = async () => {
-        try {
-            const addresses = await ensureDefaultAddress();
-            const defaultAddr = addresses.find(addr => addr.isDefault);
-            if (defaultAddr) {
-                setDefaultAddress(defaultAddr);
-            } else if (addresses.length > 0) {
-                setDefaultAddress(addresses[0]);
-            }
-        } catch (error) {
-            console.error('Error loading address:', error);
         }
     };
 
@@ -133,7 +131,7 @@ const Cart = () => {
 
         if (itemType === 'prank') {
             router.push({
-                pathname: '/select-prank',  // Changed from '/select-pranks'
+                pathname: '/select-prank',
                 params: {
                     editMode: 'true',
                     prankId: item.prankId,
@@ -248,14 +246,14 @@ const Cart = () => {
             return;
         }
 
-        if (!defaultAddress) {
+        if (!deliveryAddress) {
             Alert.alert(
                 'No Address',
                 'Please add a delivery address before checkout',
                 [
                     {
                         text: 'Add Address',
-                        onPress: () => router.push('/add-address')
+                        onPress: () => router.push('/add-delivery-address')
                     },
                     {
                         text: 'Cancel',
@@ -301,7 +299,7 @@ const Cart = () => {
             // Create order in Firebase
             const result = await createOrder(
                 orderItems,
-                defaultAddress!,
+                deliveryAddress,
                 paymentMethodName,
                 cartTotal,
                 0 // Delivery fees (0 for now)
@@ -312,6 +310,10 @@ const Cart = () => {
                 await clearCart();
                 setCartItems([]);
                 setCartTotal(0);
+
+                // Clear the delivery address
+                await AsyncStorage.removeItem('tempDeliveryAddress');
+                setDeliveryAddress(null);
 
                 // Show success modal
                 setShowSuccessModal(true);
@@ -332,14 +334,6 @@ const Cart = () => {
         } finally {
             setProcessingOrder(false);
         }
-    };
-
-    const handleEditAddress = () => {
-        router.push('/my-address');
-    };
-
-    const formatAddress = (address: AddressData) => {
-        return `${address.flatNumber}, ${address.buildingName}, ${address.streetName}`;
     };
 
     return (
@@ -363,16 +357,18 @@ const Cart = () => {
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
-                            Address
+                            Delivery Address
                         </Text>
-                        <TouchableOpacity onPress={handleEditAddress}>
-                            <Text style={[styles.editButton, { color: theme.primary, fontFamily: Fonts.medium }]}>
-                                Edit
-                            </Text>
-                        </TouchableOpacity>
+                        {deliveryAddress && (
+                            <TouchableOpacity onPress={() => router.push('/add-delivery-address')}>
+                                <Text style={[styles.editButton, { color: theme.primary, fontFamily: Fonts.medium }]}>
+                                    Edit
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
-                    {defaultAddress ? (
+                    {deliveryAddress ? (
                         <View style={[styles.addressCard, { backgroundColor: theme.background }]}>
                             <View style={styles.addressContent}>
                                 <View style={styles.mapThumbnail}>
@@ -388,11 +384,11 @@ const Cart = () => {
 
                                 <View style={styles.addressInfo}>
                                     <Text style={[styles.addressLabel, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                        {defaultAddress.addressLabel}
+                                        {deliveryAddress.addressLabel}
                                     </Text>
                                     <Text style={[styles.addressText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                        {formatAddress(defaultAddress)},{'\n'}
-                                        Pincode: {defaultAddress.pincode}
+                                        {deliveryAddress.flatNumber}, {deliveryAddress.buildingName}, {deliveryAddress.streetName},{'\n'}
+                                        Pincode: {deliveryAddress.pincode}
                                     </Text>
                                 </View>
                             </View>
@@ -400,7 +396,7 @@ const Cart = () => {
                     ) : (
                         <TouchableOpacity
                             style={[styles.addAddressButton, { borderColor: theme.primary }]}
-                            onPress={() => router.push('/add-address')}
+                            onPress={() => router.push('/add-delivery-address')}
                         >
                             <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
                             <Text style={[styles.addAddressText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
@@ -489,7 +485,6 @@ const Cart = () => {
                                 </View>
 
                                 {/* Prank Item */}
-                                {/* Prank Item */}
                                 <View style={[styles.productItem, { backgroundColor: theme.background }]}>
                                     <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
                                         <Image
@@ -524,7 +519,6 @@ const Cart = () => {
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Box Item */}
                                 {/* Box Item */}
                                 <View style={[styles.productItem, { backgroundColor: theme.background }]}>
                                     <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
@@ -565,7 +559,6 @@ const Cart = () => {
                                 </View>
 
                                 {/* Wrap Item */}
-                                {/* Wrap Item */}
                                 <View style={[styles.productItem, { backgroundColor: theme.background }]}>
                                     <View style={[styles.productImageContainer, { backgroundColor: theme.lightGrey }]}>
                                         {item.wrapImage ? (
@@ -604,7 +597,6 @@ const Cart = () => {
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Message Item */}
                                 {/* Message Item */}
                                 {item.message ? (
                                     <View style={[styles.messageItem, { backgroundColor: theme.lightOrange }]}>
@@ -1230,6 +1222,8 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         marginRight: 16,
         overflow: 'hidden',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     productImage: {
         width: '100%',
@@ -1324,9 +1318,6 @@ const styles = StyleSheet.create({
         fontSize: 17,
         fontWeight: '600',
         marginBottom: 4,
-    },
-    cardNumber: {
-        fontSize: 14,
     },
     footer: {
         paddingTop: 12,
@@ -1452,7 +1443,6 @@ const styles = StyleSheet.create({
         position: 'absolute',
         right: 8,
     },
-
     messageItem: {
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -1489,9 +1479,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         marginBottom: 4,
-    },
-    paymentOptionInfo: {
-        fontSize: 12,
     },
     radioButton: {
         width: 22,

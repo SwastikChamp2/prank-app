@@ -1,4 +1,4 @@
-// pages/MyAddress.tsx
+// pages/MyAddress.tsx - REDUNDANT NOT TO BE USED
 import React, { useState, useEffect } from 'react';
 import {
     View,

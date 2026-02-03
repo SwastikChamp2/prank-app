@@ -53,13 +53,13 @@ const Settings = () => {
             onPress: () => router.push('/profile'),
             showChevron: true,
         },
-        {
-            id: 'my-address',
-            icon: 'location-outline',
-            label: 'My Address',
-            onPress: () => router.push('/my-address'),
-            showChevron: true,
-        },
+        // {
+        //     id: 'my-address',
+        //     icon: 'location-outline',
+        //     label: 'My Address',
+        //     onPress: () => router.push('/my-address'),
+        //     showChevron: true,
+        // },
         {
             id: 'faq',
             icon: 'help-circle-outline',

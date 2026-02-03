@@ -129,6 +129,13 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
+                name="add-delivery-address"
+                options={{
+                  animation: 'slide_from_right',
+                  gestureDirection: 'horizontal',
+                }}
+              />
+              <Stack.Screen
                 name="settings"
                 options={{
                   animation: 'slide_from_right',
