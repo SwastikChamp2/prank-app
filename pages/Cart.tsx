@@ -22,6 +22,7 @@ import { Colors, Fonts } from '../constants/theme';
 import Footer from '../components/Footer/Footer';
 import { getCartItems, getCartTotal, clearCart, removeCartItem, CartItem } from '../services/CartService';
 import { createOrder, OrderItem } from '../services/orderService';
+import { saveAddress } from '../services/addressService';
 
 const Cart = () => {
     const router = useRouter();
@@ -310,6 +311,27 @@ const Cart = () => {
                 await clearCart();
                 setCartItems([]);
                 setCartTotal(0);
+
+                // Try to persist the delivery address to the user's profile (non-blocking)
+                try {
+                    if (deliveryAddress) {
+                        await saveAddress({
+                            addressLabel: deliveryAddress.addressLabel,
+                            buildingName: deliveryAddress.buildingName,
+                            streetName: deliveryAddress.streetName,
+                            pincode: deliveryAddress.pincode,
+                            flatNumber: deliveryAddress.flatNumber,
+                            phoneNumber: deliveryAddress.phoneNumber,
+                            firstName: deliveryAddress.firstName,
+                            lastName: deliveryAddress.lastName,
+                            autofetchedAddress: deliveryAddress.autofetchedAddress || '',
+                            latitude: deliveryAddress.latitude || 0,
+                            longitude: deliveryAddress.longitude || 0,
+                        });
+                    }
+                } catch (err) {
+                    console.warn('Failed to save address to user profile:', err);
+                }
 
                 // Clear the delivery address
                 await AsyncStorage.removeItem('tempDeliveryAddress');
