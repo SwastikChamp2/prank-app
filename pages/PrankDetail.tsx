@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     },
     imageSection: {
         width: SCREEN_WIDTH,
-        height: SCREEN_WIDTH * 1.1,
+        height: SCREEN_WIDTH * 1.6, // INCREASED HEIGHT (from 1.1 to 1.6)
         position: 'relative',
     },
     productImage: {
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
-        paddingTop: 50,
+        paddingTop: 60, // INCREASED for better positioning with taller image
         paddingBottom: 16,
     },
     backButton: {
@@ -307,7 +307,7 @@ const styles = StyleSheet.create({
     },
     contentSection: {
         flex: 1,
-        marginTop: -30,
+        marginTop: -40, // INCREASED NEGATIVE MARGIN (from -30 to -40)
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
         backgroundColor: '#FFFFFF',
@@ -375,5 +375,4 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.semiBold,
     },
 });
-
 export default PrankDetail;
