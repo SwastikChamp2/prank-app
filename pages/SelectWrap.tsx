@@ -331,20 +331,7 @@ const SelectWrapScreen: React.FC = () => {
                                 ))}
                             </View>
 
-                            {/* Select Wrap Button */}
-                            <View style={styles.buttonContainer}>
-                                <TouchableOpacity
-                                    style={[styles.selectButton, { backgroundColor: savingToCart ? theme.grey : theme.primary }]}
-                                    onPress={handleAddToCart}
-                                    disabled={savingToCart}
-                                >
-                                    {savingToCart ? (
-                                        <ActivityIndicator color="#FFFFFF" />
-                                    ) : (
-                                        <Text style={styles.selectButtonText}>Select Wrap</Text>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
+
                         </>
                     ) : (
                         <View style={styles.emptyContainer}>
@@ -355,6 +342,22 @@ const SelectWrapScreen: React.FC = () => {
                     )}
                 </ScrollView>
             )}
+
+
+            {/* Select Wrap Button */}
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                    style={[styles.selectButton, { backgroundColor: savingToCart ? theme.grey : theme.primary }]}
+                    onPress={handleAddToCart}
+                    disabled={savingToCart}
+                >
+                    {savingToCart ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                        <Text style={styles.selectButtonText}>Select Wrap</Text>
+                    )}
+                </TouchableOpacity>
+            </View>
 
             {/* Footer */}
             <Footer />

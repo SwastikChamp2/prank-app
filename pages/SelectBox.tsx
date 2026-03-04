@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
     View,
@@ -324,15 +325,7 @@ const SelectBox: React.FC = () => {
                                 ))}
                             </View>
 
-                            {/* Select Box Button */}
-                            <View style={styles.buttonContainer}>
-                                <TouchableOpacity
-                                    style={[styles.selectButton, { backgroundColor: theme.primary }]}
-                                    onPress={handleNavigateToWrap}
-                                >
-                                    <Text style={styles.selectButtonText}>Select Box</Text>
-                                </TouchableOpacity>
-                            </View>
+
                         </>
                     ) : (
                         <View style={styles.emptyContainer}>
@@ -342,7 +335,20 @@ const SelectBox: React.FC = () => {
                         </View>
                     )}
                 </ScrollView>
+
+
+
             )}
+
+            {/* Select Box Button */}
+            <View style={styles.buttonContainer}>
+                <TouchableOpacity
+                    style={[styles.selectButton, { backgroundColor: theme.primary }]}
+                    onPress={handleNavigateToWrap}
+                >
+                    <Text style={styles.selectButtonText}>Select Box</Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Footer */}
             <Footer />
