@@ -143,7 +143,7 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="profile"
+                name="view-profile"
                 options={{
                   animation: 'default',
                 }}

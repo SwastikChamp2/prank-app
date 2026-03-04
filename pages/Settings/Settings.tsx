@@ -50,7 +50,7 @@ const Settings = () => {
             id: 'profile',
             icon: 'person-outline',
             label: 'Profile',
-            onPress: () => router.push('/profile'),
+            onPress: () => router.push('/view-profile'),
             showChevron: true,
         },
         // {
