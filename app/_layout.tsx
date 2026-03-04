@@ -136,7 +136,7 @@ export default function RootLayout() {
                 }}
               />
               <Stack.Screen
-                name="settings"
+                name="profile"
                 options={{
                   animation: 'slide_from_right',
                   gestureDirection: 'horizontal',

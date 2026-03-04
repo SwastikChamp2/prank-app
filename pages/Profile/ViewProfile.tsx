@@ -21,7 +21,7 @@ import { auth, db } from '../../config/firebase.config';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const Profile = () => {
+const ViewProfile = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
@@ -481,4 +481,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Profile;
+export default ViewProfile;

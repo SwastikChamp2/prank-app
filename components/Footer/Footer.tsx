@@ -18,8 +18,8 @@ const Footer: React.FC = () => {
                 return pathname === '/my-orders';
             case 'cart':
                 return pathname === '/cart';
-            case 'settings':
-                return pathname === '/settings';
+            case 'profile':
+                return pathname === '/profile';
             default:
                 return tab === 'home';
         }
@@ -36,8 +36,8 @@ const Footer: React.FC = () => {
             case 'cart':
                 router.replace('/cart');
                 break;
-            case 'settings':
-                router.replace('/settings');
+            case 'profile':
+                router.replace('/profile');
                 break;
         }
     };
@@ -104,10 +104,10 @@ const Footer: React.FC = () => {
                 iconName="cart-outline"
             />
             <NavItem
-                icon="settings-outline"
-                label="Settings"
-                tabName="settings"
-                iconName="settings-outline"
+                icon="person-outline"
+                label="Profile"
+                tabName="profile"
+                iconName="person-outline"
             />
         </View>
     );

@@ -104,10 +104,15 @@ const Home = () => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.header}>
         <View style={styles.userInfo}>
-          <Image
-            source={profileImage}
-            style={styles.avatar}
-          />
+          <TouchableOpacity
+            onPress={() => router.push('/view-profile')}
+            activeOpacity={0.8}
+          >
+            <Image
+              source={profileImage}
+              style={styles.avatar}
+            />
+          </TouchableOpacity>
           <View>
             <Text style={[styles.greeting, { color: theme.text, fontFamily: Fonts.semiBold }]}>
               Hi, {userName}

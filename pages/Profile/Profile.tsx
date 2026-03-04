@@ -12,8 +12,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../constants/theme';
 import Footer from '../../components/Footer/Footer';
-import AppInfoDrawer from '../../pages/Settings/AppInfoDrawer';
-import HelpSupportDrawer from '../../pages/Settings/HelpSupportDrawer';
+import AppInfoDrawer from './AppInfoDrawer';
+import HelpSupportDrawer from './HelpSupportDrawer';
 import LogoutModal from './LogoutModal';
 
 interface SettingItem {
@@ -26,7 +26,7 @@ interface SettingItem {
     isLogout?: boolean;
 }
 
-const Settings = () => {
+const Profile = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
@@ -319,4 +319,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Settings;
+export default Profile;
