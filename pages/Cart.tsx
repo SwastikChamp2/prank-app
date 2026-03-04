@@ -406,7 +406,7 @@ const Cart = () => {
 
                                 <View style={styles.addressInfo}>
                                     <Text style={[styles.addressLabel, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                        {deliveryAddress.addressLabel}
+                                        {deliveryAddress.firstName}
                                     </Text>
                                     <Text style={[styles.addressText, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                         {deliveryAddress.flatNumber}, {deliveryAddress.buildingName}, {deliveryAddress.streetName},{'\n'}

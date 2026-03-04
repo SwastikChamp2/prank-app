@@ -13,8 +13,7 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -24,16 +23,15 @@ const AddDeliveryAddress = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
-    const params = useLocalSearchParams();
 
-    const [addressLabel, setAddressLabel] = useState('');
     const [buildingName, setBuildingName] = useState('');
+    const [floorNo, setFloorNo] = useState('');
+    const [areaName, setAreaName] = useState('');
     const [streetName, setStreetName] = useState('');
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('');
     const [pincode, setPincode] = useState('');
     const [flatNumber, setFlatNumber] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAddress, setSelectedAddress] = useState('');
     const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -51,7 +49,6 @@ const AddDeliveryAddress = () => {
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
     const [isMapReady, setIsMapReady] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         getCurrentLocation();
@@ -112,36 +109,26 @@ const AddDeliveryAddress = () => {
 
     const updateLocationDetails = async (latitude: number, longitude: number) => {
         try {
-            const reverseGeocode = await Location.reverseGeocodeAsync({
-                latitude,
-                longitude,
-            });
+            const reverseGeocode = await Location.reverseGeocodeAsync({ latitude, longitude });
 
             if (reverseGeocode.length > 0) {
                 const address = reverseGeocode[0];
 
-                // Build full address string
                 const addressParts = [
                     address.name,
                     address.street,
                     address.district,
                     address.city,
                     address.region,
-                    address.country
+                    address.country,
                 ].filter(Boolean);
 
-                const fullAddress = addressParts.join(', ');
-                setSelectedAddress(fullAddress);
+                setSelectedAddress(addressParts.join(', '));
 
-                // Auto-fill pincode
-                if (address.postalCode) {
-                    setPincode(address.postalCode);
-                }
-
-                // Auto-fill street name if available
-                if (address.street && !streetName) {
-                    setStreetName(address.street);
-                }
+                if (address.postalCode) setPincode(address.postalCode);
+                if (address.city) setCity(address.city);
+                else if (address.district) setCity(address.district);
+                if (address.region) setState(address.region);
             }
         } catch (error) {
             console.error('Error reverse geocoding:', error);
@@ -152,21 +139,16 @@ const AddDeliveryAddress = () => {
         try {
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/search?` +
-                `format=json&` +
-                `q=${encodeURIComponent(query)}&` +
-                `limit=5&` +
-                `addressdetails=1`,
+                `format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`,
                 {
                     headers: {
-                        'Accept': 'application/json',
-                        'User-Agent': 'prank-app'
-                    }
+                        Accept: 'application/json',
+                        'User-Agent': 'prank-app',
+                    },
                 }
             );
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch suggestions');
-            }
+            if (!response.ok) throw new Error('Failed to fetch suggestions');
 
             const data = await response.json();
 
@@ -178,7 +160,6 @@ const AddDeliveryAddress = () => {
                     name: item.name,
                     type: item.type,
                 }));
-
                 setSuggestions(formattedSuggestions);
                 setShowSuggestions(formattedSuggestions.length > 0);
             } else {
@@ -196,26 +177,15 @@ const AddDeliveryAddress = () => {
         setSearchQuery(suggestion.address);
         setShowSuggestions(false);
         setSuggestions([]);
-
         setSearching(true);
         setIsMapReady(false);
 
         try {
             await new Promise(resolve => setTimeout(resolve, 300));
-
             const { latitude, longitude } = suggestion;
-
             setMarkerCoordinate({ latitude, longitude });
-
-            setMapRegion({
-                latitude,
-                longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-            });
-
+            setMapRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 });
             await updateLocationDetails(latitude, longitude);
-
             await new Promise(resolve => setTimeout(resolve, 200));
             setIsMapReady(true);
         } catch (error) {
@@ -227,7 +197,6 @@ const AddDeliveryAddress = () => {
 
     const handleMapPress = async (event: any) => {
         const { latitude, longitude } = event.nativeEvent.coordinate;
-
         setMarkerCoordinate({ latitude, longitude });
         await updateLocationDetails(latitude, longitude);
     };
@@ -236,10 +205,8 @@ const AddDeliveryAddress = () => {
         setSearchQuery('');
         setSuggestions([]);
         setShowSuggestions(false);
-
         setLoading(true);
         setIsMapReady(false);
-
         await getCurrentLocation();
     };
 
@@ -255,23 +222,13 @@ const AddDeliveryAddress = () => {
 
         try {
             await new Promise(resolve => setTimeout(resolve, 300));
-
             const geocode = await Location.geocodeAsync(searchQuery);
 
             if (geocode.length > 0) {
                 const { latitude, longitude } = geocode[0];
-
                 setMarkerCoordinate({ latitude, longitude });
-
-                setMapRegion({
-                    latitude,
-                    longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                });
-
+                setMapRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 });
                 await updateLocationDetails(latitude, longitude);
-
                 await new Promise(resolve => setTimeout(resolve, 200));
                 setIsMapReady(true);
             } else {
@@ -287,72 +244,45 @@ const AddDeliveryAddress = () => {
         }
     };
 
-    const handleBack = () => {
-        router.back();
-    };
-
     const isFormValid = () => {
         return (
-            addressLabel.trim() !== '' &&
             buildingName.trim() !== '' &&
             streetName.trim() !== '' &&
+            city.trim() !== '' &&
+            state.trim() !== '' &&
             pincode.trim() !== '' &&
             flatNumber.trim() !== '' &&
-            phoneNumber.trim() !== '' &&
-            firstName.trim() !== '' &&
-            lastName.trim() !== '' &&
+            floorNo.trim() !== '' &&
+            areaName.trim() !== '' &&
             selectedAddress.trim() !== ''
         );
     };
 
-    const handleConfirm = async () => {
+    const handleNext = () => {
         if (!isFormValid()) {
             Alert.alert('Error', 'Please fill in all required fields');
             return;
         }
 
-        setIsSaving(true);
-
-        try {
-            // Prepare address data
-            const addressData = {
-                addressLabel: addressLabel.trim(),
+        // Pass address data as route params to the next page
+        router.push({
+            pathname: '/add-contact-details',
+            params: {
                 buildingName: buildingName.trim(),
-                streetName: streetName.trim(),
-                pincode: pincode.trim(),
                 flatNumber: flatNumber.trim(),
-                phoneNumber: phoneNumber.trim(),
-                firstName: firstName.trim(),
-                lastName: lastName.trim(),
+                floorNo: floorNo.trim(),
+                areaName: areaName.trim(),
+                streetName: streetName.trim(),
+                city: city.trim(),
+                state: state.trim(),
+                pincode: pincode.trim(),
                 autofetchedAddress: selectedAddress,
-                latitude: markerCoordinate.latitude,
-                longitude: markerCoordinate.longitude,
-            };
-
-            // Store in AsyncStorage temporarily
-            await AsyncStorage.setItem('tempDeliveryAddress', JSON.stringify(addressData));
-
-            Alert.alert(
-                'Success',
-                'Delivery address added successfully!',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.back()
-                    }
-                ]
-            );
-        } catch (error) {
-            console.error('Error saving address:', error);
-            Alert.alert(
-                'Error',
-                'Failed to save address. Please try again.',
-                [{ text: 'OK' }]
-            );
-        } finally {
-            setIsSaving(false);
-        }
+                latitude: String(markerCoordinate.latitude),
+                longitude: String(markerCoordinate.longitude),
+            },
+        });
     };
+
     return (
         <KeyboardAvoidingView
             style={[styles.container, { backgroundColor: theme.background }]}
@@ -360,13 +290,16 @@ const AddDeliveryAddress = () => {
         >
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color={theme.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
                     Delivery Address
                 </Text>
-                <View style={styles.placeholder} />
+                {/* Step indicator */}
+                <Text style={[styles.stepIndicator, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                    Step 1 of 2
+                </Text>
             </View>
 
             <ScrollView
@@ -392,9 +325,7 @@ const AddDeliveryAddress = () => {
                                 returnKeyType="search"
                                 onSubmitEditing={handleSearch}
                                 onFocus={() => {
-                                    if (suggestions.length > 0) {
-                                        setShowSuggestions(true);
-                                    }
+                                    if (suggestions.length > 0) setShowSuggestions(true);
                                 }}
                             />
                             {searching ? (
@@ -424,7 +355,7 @@ const AddDeliveryAddress = () => {
                                             style={[
                                                 styles.suggestionItem,
                                                 { borderBottomColor: theme.border },
-                                                index === suggestions.length - 1 && styles.lastSuggestion
+                                                index === suggestions.length - 1 && styles.lastSuggestion,
                                             ]}
                                             onPress={() => handleSuggestionSelect(suggestion)}
                                         >
@@ -510,36 +441,14 @@ const AddDeliveryAddress = () => {
                         </Text>
                     </View>
 
-                    <View style={styles.fullWidthInputContainer}>
-                        <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                            Address Label
-                        </Text>
-                        <TextInput
-                            style={[styles.input, {
-                                backgroundColor: theme.background,
-                                borderColor: theme.border,
-                                color: theme.text,
-                                fontFamily: Fonts.regular,
-                            }]}
-                            value={addressLabel}
-                            onChangeText={setAddressLabel}
-                            placeholder="Home / Work / Other"
-                            placeholderTextColor={theme.grey}
-                        />
-                    </View>
-
+                    {/* Building Name and Flat No */}
                     <View style={styles.inputRow}>
                         <View style={styles.inputContainer}>
                             <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                 Building Name/No.
                             </Text>
                             <TextInput
-                                style={[styles.input, {
-                                    backgroundColor: theme.background,
-                                    borderColor: theme.border,
-                                    color: theme.text,
-                                    fontFamily: Fonts.regular
-                                }]}
+                                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
                                 value={buildingName}
                                 onChangeText={setBuildingName}
                                 placeholder="Building name"
@@ -549,55 +458,10 @@ const AddDeliveryAddress = () => {
 
                         <View style={styles.inputContainer}>
                             <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                Street Name
-                            </Text>
-                            <TextInput
-                                style={[styles.input, {
-                                    backgroundColor: theme.background,
-                                    borderColor: theme.border,
-                                    color: theme.text,
-                                    fontFamily: Fonts.regular
-                                }]}
-                                value={streetName}
-                                onChangeText={setStreetName}
-                                placeholder="Street name"
-                                placeholderTextColor={theme.grey}
-                            />
-                        </View>
-                    </View>
-
-                    <View style={styles.inputRow}>
-                        <View style={styles.inputContainer}>
-                            <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                Pincode
-                            </Text>
-                            <TextInput
-                                style={[styles.input, {
-                                    backgroundColor: theme.background,
-                                    borderColor: theme.border,
-                                    color: theme.text,
-                                    fontFamily: Fonts.regular
-                                }]}
-                                value={pincode}
-                                onChangeText={setPincode}
-                                placeholder="Pincode"
-                                placeholderTextColor={theme.grey}
-                                keyboardType="number-pad"
-                                maxLength={6}
-                            />
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                 Flat No.
                             </Text>
                             <TextInput
-                                style={[styles.input, {
-                                    backgroundColor: theme.background,
-                                    borderColor: theme.border,
-                                    color: theme.text,
-                                    fontFamily: Fonts.regular
-                                }]}
+                                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
                                 value={flatNumber}
                                 onChangeText={setFlatNumber}
                                 placeholder="Flat number"
@@ -605,101 +469,115 @@ const AddDeliveryAddress = () => {
                             />
                         </View>
                     </View>
-                </View>
 
-                {/* Contact Information */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Ionicons name="person-outline" size={20} color={theme.text} />
-                        <Text style={[styles.sectionTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                            Contact Information
-                        </Text>
-                    </View>
-
-                    <View style={styles.fullWidthInputContainer}>
-                        <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                            Phone Number
-                        </Text>
-                        <View style={[styles.phoneInput, { backgroundColor: theme.background, borderColor: theme.border }]}>
-                            <Ionicons name="call-outline" size={20} color={theme.grey} />
-                            <TextInput
-                                style={[styles.phoneTextInput, {
-                                    color: theme.text,
-                                    fontFamily: Fonts.regular
-                                }]}
-                                value={phoneNumber}
-                                onChangeText={setPhoneNumber}
-                                placeholder="Enter phone number"
-                                placeholderTextColor={theme.grey}
-                                keyboardType="phone-pad"
-                                maxLength={10}
-                            />
-                        </View>
-                    </View>
-
+                    {/* Floor No and Area Name */}
                     <View style={styles.inputRow}>
                         <View style={styles.inputContainer}>
                             <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                First Name
+                                Floor No.
                             </Text>
                             <TextInput
-                                style={[styles.input, {
-                                    backgroundColor: theme.background,
-                                    borderColor: theme.border,
-                                    color: theme.text,
-                                    fontFamily: Fonts.regular
-                                }]}
-                                value={firstName}
-                                onChangeText={setFirstName}
-                                placeholder="First name"
+                                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
+                                value={floorNo}
+                                onChangeText={setFloorNo}
+                                placeholder="Floor number"
+                                placeholderTextColor={theme.grey}
+                                keyboardType="number-pad"
+                            />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                Area Name
+                            </Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
+                                value={areaName}
+                                onChangeText={setAreaName}
+                                placeholder="Area/Locality"
+                                placeholderTextColor={theme.grey}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Street Name */}
+                    <View style={styles.fullWidthInputContainer}>
+                        <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                            Street Name
+                        </Text>
+                        <TextInput
+                            style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
+                            value={streetName}
+                            onChangeText={setStreetName}
+                            placeholder="Street name"
+                            placeholderTextColor={theme.grey}
+                        />
+                    </View>
+
+                    {/* City and State */}
+                    <View style={styles.inputRow}>
+                        <View style={styles.inputContainer}>
+                            <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                City
+                            </Text>
+                            <TextInput
+                                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
+                                value={city}
+                                onChangeText={setCity}
+                                placeholder="City"
                                 placeholderTextColor={theme.grey}
                             />
                         </View>
 
                         <View style={styles.inputContainer}>
                             <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                                Last Name
+                                State
                             </Text>
                             <TextInput
-                                style={[styles.input, {
-                                    backgroundColor: theme.background,
-                                    borderColor: theme.border,
-                                    color: theme.text,
-                                    fontFamily: Fonts.regular
-                                }]}
-                                value={lastName}
-                                onChangeText={setLastName}
-                                placeholder="Last name"
+                                style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
+                                value={state}
+                                onChangeText={setState}
+                                placeholder="State"
                                 placeholderTextColor={theme.grey}
                             />
                         </View>
+                    </View>
+
+                    {/* Pincode */}
+                    <View style={styles.fullWidthInputContainer}>
+                        <Text style={[styles.inputLabel, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                            Pincode
+                        </Text>
+                        <TextInput
+                            style={[styles.input, { backgroundColor: theme.background, borderColor: theme.border, color: theme.text, fontFamily: Fonts.regular }]}
+                            value={pincode}
+                            onChangeText={setPincode}
+                            placeholder="Pincode"
+                            placeholderTextColor={theme.grey}
+                            keyboardType="number-pad"
+                            maxLength={6}
+                        />
                     </View>
                 </View>
 
                 <View style={{ height: 100 }} />
             </ScrollView>
 
-            {/* Confirm Button */}
+            {/* Next Button */}
             <View style={[styles.buttonContainer, { backgroundColor: theme.background }]}>
                 <TouchableOpacity
                     style={[
-                        styles.confirmButton,
-                        {
-                            backgroundColor: isFormValid() ? theme.primary : theme.grey,
-                            opacity: (isFormValid() && !isSaving) ? 1 : 0.5
-                        }
+                        styles.nextButton,
+                        { backgroundColor: isFormValid() ? theme.primary : theme.grey, opacity: isFormValid() ? 1 : 0.5 },
                     ]}
-                    onPress={handleConfirm}
-                    disabled={!isFormValid() || isSaving}
+                    onPress={handleNext}
+                    disabled={!isFormValid()}
                     activeOpacity={0.8}
                 >
-                    {isSaving ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                        <Text style={[styles.confirmButtonText, { fontFamily: Fonts.semiBold }]}>
-                            Save Address
-                        </Text>
-                    )}
+                    <Text style={[styles.nextButtonText, { fontFamily: Fonts.semiBold }]}>
+                        Next: Contact Details
+                    </Text>
+                    <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
@@ -707,9 +585,7 @@ const AddDeliveryAddress = () => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+    container: { flex: 1 },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -724,34 +600,18 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    headerTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-    },
-    placeholder: {
-        width: 40,
-    },
-    scrollContent: {
-        paddingHorizontal: 16,
-    },
-    section: {
-        marginBottom: 24,
-    },
+    headerTitle: { fontSize: 20, fontWeight: '700' },
+    stepIndicator: { fontSize: 13 },
+    scrollContent: { paddingHorizontal: 16 },
+    section: { marginBottom: 24 },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
         marginBottom: 16,
     },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    searchWrapper: {
-        position: 'relative',
-        zIndex: 10,
-        marginBottom: 12,
-    },
+    sectionTitle: { fontSize: 16, fontWeight: '600' },
+    searchWrapper: { position: 'relative', zIndex: 10, marginBottom: 12 },
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -761,11 +621,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         gap: 12,
     },
-    searchInput: {
-        flex: 1,
-        fontSize: 14,
-        paddingVertical: 0,
-    },
+    searchInput: { flex: 1, fontSize: 14, paddingVertical: 0 },
     suggestionsContainer: {
         position: 'absolute',
         top: 56,
@@ -781,9 +637,7 @@ const styles = StyleSheet.create({
         elevation: 5,
         overflow: 'hidden',
     },
-    suggestionsList: {
-        flex: 1,
-    },
+    suggestionsList: { flex: 1 },
     suggestionItem: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -792,14 +646,8 @@ const styles = StyleSheet.create({
         gap: 12,
         borderBottomWidth: 1,
     },
-    lastSuggestion: {
-        borderBottomWidth: 0,
-    },
-    suggestionText: {
-        flex: 1,
-        fontSize: 13,
-        lineHeight: 18,
-    },
+    lastSuggestion: { borderBottomWidth: 0 },
+    suggestionText: { flex: 1, fontSize: 13, lineHeight: 18 },
     mapContainer: {
         height: 250,
         borderRadius: 16,
@@ -807,22 +655,15 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         position: 'relative',
     },
-    map: {
-        flex: 1,
-    },
+    map: { flex: 1 },
     mapLoadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         gap: 12,
     },
-    loadingText: {
-        fontSize: 14,
-    },
-    customMarker: {
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    loadingText: { fontSize: 14 },
+    customMarker: { alignItems: 'center', justifyContent: 'center' },
     recenterButton: {
         position: 'absolute',
         bottom: 16,
@@ -846,46 +687,17 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         gap: 10,
     },
-    selectedAddressText: {
-        flex: 1,
-        fontSize: 13,
-        lineHeight: 18,
-    },
-    inputRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 16,
-    },
-    inputContainer: {
-        flex: 1,
-    },
-    fullWidthInputContainer: {
-        marginBottom: 16,
-    },
-    inputLabel: {
-        fontSize: 12,
-        marginBottom: 8,
-    },
+    selectedAddressText: { flex: 1, fontSize: 13, lineHeight: 18 },
+    inputRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    inputContainer: { flex: 1 },
+    fullWidthInputContainer: { marginBottom: 16 },
+    inputLabel: { fontSize: 12, marginBottom: 8 },
     input: {
         height: 48,
         borderRadius: 12,
         borderWidth: 1,
         paddingHorizontal: 16,
         fontSize: 14,
-    },
-    phoneInput: {
-        height: 48,
-        borderRadius: 12,
-        borderWidth: 1,
-        paddingHorizontal: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    phoneTextInput: {
-        flex: 1,
-        fontSize: 14,
-        paddingVertical: 0,
     },
     buttonContainer: {
         position: 'absolute',
@@ -898,17 +710,15 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: 'rgba(0, 0, 0, 0.05)',
     },
-    confirmButton: {
+    nextButton: {
         height: 56,
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
+        flexDirection: 'row',
+        gap: 8,
     },
-    confirmButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
-    },
+    nextButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
 });
 
 export default AddDeliveryAddress;
