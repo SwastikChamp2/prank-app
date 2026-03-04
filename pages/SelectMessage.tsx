@@ -46,6 +46,7 @@ const SelectMessage: React.FC = () => {
     const [message, setMessage] = useState(currentMessage || '');
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
+    const [agreedToTermsAndConditions, setAgreedToTermsAndConditions] = useState(false);
     const [savingToCart, setSavingToCart] = useState(false);
 
     const maxModalHeight = Dimensions.get('window').height * 0.7;
@@ -88,6 +89,7 @@ const SelectMessage: React.FC = () => {
         } finally {
             setSavingToCart(false);
             setAgreedToTerms(false);
+            setAgreedToTermsAndConditions(false);
         }
     };
 
@@ -137,10 +139,10 @@ const SelectMessage: React.FC = () => {
                         textAlignVertical="top"
                         value={message}
                         onChangeText={setMessage}
-                        maxLength={500}
+                        maxLength={50}
                     />
                     <Text style={[styles.characterCount, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                        {message.length}/500 characters
+                        {message.length}/50 characters
                     </Text>
                 </View>
 
@@ -266,59 +268,28 @@ const SelectMessage: React.FC = () => {
                             </Text>
                         </ScrollView>
 
-                        {/* Checkbox */}
-                        <TouchableOpacity
-                            style={styles.checkboxContainer}
-                            activeOpacity={0.8}
-                            onPress={() => setAgreedToTerms(!agreedToTerms)}
-                        >
-                            <View
-                                style={[
-                                    styles.checkbox,
-                                    {
-                                        borderColor: agreedToTerms ? theme.primary : theme.grey,
-                                        backgroundColor: agreedToTerms ? theme.primary : 'transparent',
-                                    },
-                                ]}
-                            >
-                                {agreedToTerms && (
-                                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                                )}
+                        {/* Checkboxes */}
+                        {/* First Checkbox - Message Guidelines */}
+                        <TouchableOpacity style={styles.checkboxContainer} activeOpacity={0.8} onPress={() => setAgreedToTerms(!agreedToTerms)}>
+                            <View style={[styles.checkbox, { borderColor: agreedToTerms ? theme.primary : theme.grey, backgroundColor: agreedToTerms ? theme.primary : 'transparent', },]} >
+                                {agreedToTerms && (<Ionicons name="checkmark" size={16} color="#FFFFFF" />)}
                             </View>
+                            <Text style={[styles.checkboxLabel, { color: theme.text, fontFamily: Fonts.regular, },]} > I agree to follow the message guidelines </Text>
+                        </TouchableOpacity>
 
-                            <Text
-                                style={[
-                                    styles.checkboxLabel,
-                                    {
-                                        color: theme.text,
-                                        fontFamily: Fonts.regular,
-                                    },
-                                ]}
-                            >
-                                I agree to follow the message guidelines
+                        {/* Second Checkbox - Terms & Conditions */}
+                        <TouchableOpacity style={styles.checkboxContainer} activeOpacity={0.8} onPress={() => setAgreedToTermsAndConditions(!agreedToTermsAndConditions)}>
+                            <View style={[styles.checkbox, { borderColor: agreedToTermsAndConditions ? theme.primary : theme.grey, backgroundColor: agreedToTermsAndConditions ? theme.primary : 'transparent', },]} >
+                                {agreedToTermsAndConditions && (<Ionicons name="checkmark" size={16} color="#FFFFFF" />)}
+                            </View>
+                            <Text style={[styles.checkboxLabel, { color: theme.text, fontFamily: Fonts.regular, },]} >
+                                I agree to the <Text style={{ color: theme.primary, textDecorationLine: 'underline' }} onPress={() => router.push('/terms-conditions')}>terms and conditions</Text>
                             </Text>
                         </TouchableOpacity>
 
                         {/* Confirm Button */}
-                        <TouchableOpacity
-                            style={[
-                                styles.confirmButton,
-                                {
-                                    backgroundColor: agreedToTerms ? theme.primary : theme.grey,
-                                    opacity: agreedToTerms ? 1 : 0.5,
-                                },
-                            ]}
-                            onPress={handleConfirmTerms}
-                            disabled={!agreedToTerms}
-                        >
-                            <Text
-                                style={[
-                                    styles.confirmButtonText,
-                                    { fontFamily: Fonts.semiBold },
-                                ]}
-                            >
-                                Add to Cart
-                            </Text>
+                        <TouchableOpacity style={[styles.confirmButton, { backgroundColor: (agreedToTerms && agreedToTermsAndConditions) ? theme.primary : theme.grey, opacity: (agreedToTerms && agreedToTermsAndConditions) ? 1 : 0.5, },]} onPress={handleConfirmTerms} disabled={!agreedToTerms || !agreedToTermsAndConditions} >
+                            <Text style={[styles.confirmButtonText, { fontFamily: Fonts.semiBold },]} > I agree </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
