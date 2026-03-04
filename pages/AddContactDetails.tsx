@@ -45,6 +45,7 @@ const AddContactDetails = () => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [isSelfCoordinating, setIsSelfCoordinating] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditMode] = useState(params?.isEditMode === 'true');
 
@@ -58,10 +59,14 @@ const AddContactDetails = () => {
     }, []);
 
     const isFormValid = () => {
-        return (
+        const hasNames =
             firstName.trim() !== '' &&
-            lastName.trim() !== ''
-        );
+            lastName.trim() !== '';
+
+        const hasPhone = phoneNumber.trim().length === 10;
+        const hasConsent = isSelfCoordinating;
+
+        return hasNames && (hasPhone || hasConsent);
     };
 
     const handleConfirm = async () => {
@@ -243,9 +248,41 @@ const AddContactDetails = () => {
                             />
                         </View>
                         <Text style={[styles.fieldHint, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                            We'll only use this to contact you about your delivery.
+                            We'll only use this to contact and coordinate  delivery.
                         </Text>
                     </View>
+
+                    {/* Self Coordination Checkbox */}
+                    <TouchableOpacity
+                        style={styles.checkboxContainer}
+                        onPress={() => setIsSelfCoordinating(!isSelfCoordinating)}
+                        activeOpacity={0.8}
+                    >
+                        <View
+                            style={[
+                                styles.checkbox,
+                                {
+                                    borderColor: theme.primary,
+                                    backgroundColor: isSelfCoordinating
+                                        ? theme.primary
+                                        : 'transparent',
+                                },
+                            ]}
+                        >
+                            {isSelfCoordinating && (
+                                <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                            )}
+                        </View>
+
+                        <Text
+                            style={[
+                                styles.checkboxText,
+                                { color: theme.text, fontFamily: Fonts.regular },
+                            ]}
+                        >
+                            I am willing to coordinate the delivery and consent to sharing my number
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={{ height: 120 }} />
@@ -357,6 +394,30 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: 'rgba(0, 0, 0, 0.05)',
     },
+
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        marginTop: 8,
+    },
+
+    checkbox: {
+        width: 20,
+        height: 20,
+        borderRadius: 4,
+        borderWidth: 2,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 2,
+    },
+
+    checkboxText: {
+        flex: 1,
+        fontSize: 13,
+        lineHeight: 18,
+    },
+
     saveButton: {
         height: 56,
         borderRadius: 28,

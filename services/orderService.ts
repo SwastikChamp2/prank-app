@@ -54,6 +54,9 @@ export interface OrderData {
     paymentMethod: string; // e.g., "Master Card", "UPI", etc.
     paymentStatus: 'pending' | 'completed' | 'failed';
 
+    // User Information
+    userPhoneNumber: string; // Phone number of the user placing the order
+
     // Order Status
     status: 'Order Placed' | 'Order Picked' | 'On the Way' | 'Delivered' | 'Cancelled';
 
@@ -152,6 +155,19 @@ export const createOrder = async (
             throw new Error('No authenticated user found');
         }
 
+        // Fetch user's phone number from users collection
+        let userPhoneNumber = '';
+        try {
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists()) {
+                userPhoneNumber = userDocSnap.data()?.phoneNumber || '';
+            }
+        } catch (error) {
+            console.warn('Error fetching user phone number:', error);
+            userPhoneNumber = '';
+        }
+
         // Generate unique IDs
         const orderId = generateId('PRK');
         const transactionId = generateId('TXN');
@@ -171,6 +187,7 @@ export const createOrder = async (
             deliveryLocation: deliveryAddress,
             paymentMethod,
             paymentStatus: 'completed',
+            userPhoneNumber,
             status: 'Order Placed',
             progress: createInitialProgress(),
             createdAt: Timestamp.now(),
