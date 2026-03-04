@@ -42,10 +42,31 @@ export const saveAddress = async (addressData: Omit<AddressData, 'id' | 'created
         // Generate unique ID for the address
         const addressId = `addr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+        // Sanitize data - remove undefined values
+        const sanitizedData: any = {};
+        Object.keys(addressData).forEach(key => {
+            const value = (addressData as any)[key];
+            // Only include non-undefined values
+            if (value !== undefined && value !== null) {
+                sanitizedData[key] = value;
+            }
+        });
+
         // Create the address object with all required fields
         const newAddress: AddressData = {
             id: addressId,
-            ...addressData,
+            // Provide defaults for required fields
+            addressLabel: sanitizedData.addressLabel || 'My Address',
+            buildingName: sanitizedData.buildingName || '',
+            streetName: sanitizedData.streetName || '',
+            pincode: sanitizedData.pincode || '',
+            flatNumber: sanitizedData.flatNumber || '',
+            phoneNumber: sanitizedData.phoneNumber || '',
+            firstName: sanitizedData.firstName || '',
+            lastName: sanitizedData.lastName || '',
+            autofetchedAddress: sanitizedData.autofetchedAddress || '',
+            latitude: sanitizedData.latitude || 0,
+            longitude: sanitizedData.longitude || 0,
             isDefault: false,
             createdAt: Timestamp.now(),
         };

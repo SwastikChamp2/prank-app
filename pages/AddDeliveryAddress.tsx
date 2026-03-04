@@ -13,7 +13,7 @@ import {
     Alert,
     ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -23,6 +23,23 @@ const AddDeliveryAddress = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
+    const params = useLocalSearchParams<{
+        buildingName?: string;
+        flatNumber?: string;
+        floorNo?: string;
+        areaName?: string;
+        streetName?: string;
+        city?: string;
+        state?: string;
+        pincode?: string;
+        autofetchedAddress?: string;
+        latitude?: string;
+        longitude?: string;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+        isEditMode?: string;
+    }>();
 
     const [buildingName, setBuildingName] = useState('');
     const [floorNo, setFloorNo] = useState('');
@@ -49,10 +66,48 @@ const AddDeliveryAddress = () => {
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
     const [isMapReady, setIsMapReady] = useState(false);
+    const [isEditMode] = useState(params?.isEditMode === 'true');
 
     useEffect(() => {
-        getCurrentLocation();
+        if (isEditMode && params) {
+            // Load existing data for edit mode
+            loadExistingData();
+        } else {
+            getCurrentLocation();
+        }
     }, []);
+
+    const loadExistingData = async () => {
+        try {
+            // Prefill form fields with existing data
+            if (params?.buildingName) setBuildingName(params.buildingName);
+            if (params?.flatNumber) setFlatNumber(params.flatNumber);
+            if (params?.floorNo) setFloorNo(params.floorNo);
+            if (params?.areaName) setAreaName(params.areaName);
+            if (params?.streetName) setStreetName(params.streetName);
+            if (params?.city) setCity(params.city);
+            if (params?.state) setState(params.state);
+            if (params?.pincode) setPincode(params.pincode);
+            if (params?.autofetchedAddress) setSelectedAddress(params.autofetchedAddress);
+
+            // Set map coordinates to existing location
+            const latitude = params?.latitude ? parseFloat(params.latitude) : 19.2183;
+            const longitude = params?.longitude ? parseFloat(params.longitude) : 72.9781;
+
+            setMarkerCoordinate({ latitude, longitude });
+            setMapRegion({
+                latitude,
+                longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+            });
+
+            setLoading(false);
+        } catch (error) {
+            console.error('Error loading existing address data:', error);
+            setLoading(false);
+        }
+    };
 
     // Debounced search for suggestions
     useEffect(() => {
@@ -264,22 +319,33 @@ const AddDeliveryAddress = () => {
             return;
         }
 
+        // If we're in edit mode, pass to contact details with edit flag
+        const navigationParams: any = {
+            buildingName: buildingName.trim(),
+            flatNumber: flatNumber.trim(),
+            floorNo: floorNo.trim(),
+            areaName: areaName.trim(),
+            streetName: streetName.trim(),
+            city: city.trim(),
+            state: state.trim(),
+            pincode: pincode.trim(),
+            autofetchedAddress: selectedAddress,
+            latitude: String(markerCoordinate.latitude),
+            longitude: String(markerCoordinate.longitude),
+        };
+
+        // If editing, pass existing contact info and edit flag
+        if (isEditMode) {
+            navigationParams.firstName = params?.firstName || '';
+            navigationParams.lastName = params?.lastName || '';
+            navigationParams.phoneNumber = params?.phoneNumber || '';
+            navigationParams.isEditMode = 'true';
+        }
+
         // Pass address data as route params to the next page
         router.push({
             pathname: '/add-contact-details',
-            params: {
-                buildingName: buildingName.trim(),
-                flatNumber: flatNumber.trim(),
-                floorNo: floorNo.trim(),
-                areaName: areaName.trim(),
-                streetName: streetName.trim(),
-                city: city.trim(),
-                state: state.trim(),
-                pincode: pincode.trim(),
-                autofetchedAddress: selectedAddress,
-                latitude: String(markerCoordinate.latitude),
-                longitude: String(markerCoordinate.longitude),
-            },
+            params: navigationParams,
         });
     };
 
@@ -298,7 +364,7 @@ const AddDeliveryAddress = () => {
                 </Text>
                 {/* Step indicator */}
                 <Text style={[styles.stepIndicator, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                    Step 1 of 2
+                    {isEditMode ? 'Edit' : 'Step 1 of 2'}
                 </Text>
             </View>
 

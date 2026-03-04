@@ -1,5 +1,5 @@
 // pages/AddContactDetails.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -36,12 +36,26 @@ const AddContactDetails = () => {
         autofetchedAddress: string;
         latitude: string;
         longitude: string;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
+        isEditMode?: string;
     }>();
 
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isEditMode] = useState(params?.isEditMode === 'true');
+
+    useEffect(() => {
+        // Load existing contact details if in edit mode
+        if (isEditMode && params) {
+            if (params.firstName) setFirstName(params.firstName);
+            if (params.lastName) setLastName(params.lastName);
+            if (params.phoneNumber) setPhoneNumber(params.phoneNumber);
+        }
+    }, []);
 
     const isFormValid = () => {
         return (
@@ -78,17 +92,32 @@ const AddContactDetails = () => {
 
             await AsyncStorage.setItem('tempDeliveryAddress', JSON.stringify(addressData));
 
-            Alert.alert(
-                'Success',
-                'Delivery address added successfully!',
-                [
-                    {
-                        text: 'OK',
-                        // Go back two screens to exit the add-address flow entirely
-                        onPress: () => router.dismiss(2),
-                    },
-                ]
-            );
+            if (isEditMode) {
+                // In edit mode, go back to Cart (dismiss 2 screens)
+                Alert.alert(
+                    'Success',
+                    'Delivery address updated successfully!',
+                    [
+                        {
+                            text: 'OK',
+                            onPress: () => router.dismiss(2),
+                        },
+                    ]
+                );
+            } else {
+                // In new address mode, dismiss the modal flow
+                Alert.alert(
+                    'Success',
+                    'Delivery address added successfully!',
+                    [
+                        {
+                            text: 'OK',
+                            // Go back two screens to exit the add-address flow entirely
+                            onPress: () => router.dismiss(2),
+                        },
+                    ]
+                );
+            }
         } catch (error) {
             console.error('Error saving address:', error);
             Alert.alert('Error', 'Failed to save address. Please try again.', [{ text: 'OK' }]);
@@ -111,7 +140,7 @@ const AddContactDetails = () => {
                     Contact Details
                 </Text>
                 <Text style={[styles.stepIndicator, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                    Step 2 of 2
+                    {isEditMode ? 'Editing' : 'Step 2 of 2'}
                 </Text>
             </View>
 
@@ -242,7 +271,7 @@ const AddContactDetails = () => {
                         <>
                             <Ionicons name="checkmark-circle-outline" size={22} color="#FFFFFF" />
                             <Text style={[styles.saveButtonText, { fontFamily: Fonts.semiBold }]}>
-                                Save Address
+                                {isEditMode ? 'Update Address' : 'Save Address'}
                             </Text>
                         </>
                     )}

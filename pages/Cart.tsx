@@ -315,15 +315,18 @@ const Cart = () => {
                 // Try to persist the delivery address to the user's profile (non-blocking)
                 try {
                     if (deliveryAddress) {
+                        // Generate a label from the address data
+                        const addressLabel = `${deliveryAddress.firstName} ${deliveryAddress.lastName}`;
+
                         await saveAddress({
-                            addressLabel: deliveryAddress.addressLabel,
-                            buildingName: deliveryAddress.buildingName,
-                            streetName: deliveryAddress.streetName,
-                            pincode: deliveryAddress.pincode,
-                            flatNumber: deliveryAddress.flatNumber,
-                            phoneNumber: deliveryAddress.phoneNumber,
-                            firstName: deliveryAddress.firstName,
-                            lastName: deliveryAddress.lastName,
+                            addressLabel: addressLabel.trim() || 'My Address',
+                            buildingName: deliveryAddress.buildingName || '',
+                            streetName: deliveryAddress.streetName || '',
+                            pincode: deliveryAddress.pincode || '',
+                            flatNumber: deliveryAddress.flatNumber || '',
+                            phoneNumber: deliveryAddress.phoneNumber || '',
+                            firstName: deliveryAddress.firstName || '',
+                            lastName: deliveryAddress.lastName || '',
                             autofetchedAddress: deliveryAddress.autofetchedAddress || '',
                             latitude: deliveryAddress.latitude || 0,
                             longitude: deliveryAddress.longitude || 0,
@@ -382,7 +385,26 @@ const Cart = () => {
                             Delivery Address
                         </Text>
                         {deliveryAddress && (
-                            <TouchableOpacity onPress={() => router.push('/add-delivery-address')}>
+                            <TouchableOpacity onPress={() => router.push({
+                                pathname: '/add-delivery-address',
+                                params: {
+                                    buildingName: deliveryAddress.buildingName || '',
+                                    flatNumber: deliveryAddress.flatNumber || '',
+                                    floorNo: deliveryAddress.floorNo || '',
+                                    areaName: deliveryAddress.areaName || '',
+                                    streetName: deliveryAddress.streetName || '',
+                                    city: deliveryAddress.city || '',
+                                    state: deliveryAddress.state || '',
+                                    pincode: deliveryAddress.pincode || '',
+                                    autofetchedAddress: deliveryAddress.autofetchedAddress || '',
+                                    latitude: String(deliveryAddress.latitude) || '0',
+                                    longitude: String(deliveryAddress.longitude) || '0',
+                                    firstName: deliveryAddress.firstName || '',
+                                    lastName: deliveryAddress.lastName || '',
+                                    phoneNumber: deliveryAddress.phoneNumber || '',
+                                    isEditMode: 'true',
+                                }
+                            })}>
                                 <Text style={[styles.editButton, { color: theme.primary, fontFamily: Fonts.medium }]}>
                                     Edit
                                 </Text>
