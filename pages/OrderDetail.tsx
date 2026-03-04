@@ -53,9 +53,10 @@ const OrderDetail = () => {
     const getCurrentProgressIndex = () => {
         if (!order) return 0;
 
-        // Find the last completed stage
-        for (let i = order.progress.length - 1; i >= 0; i--) {
-            if (order.progress[i].completedAt !== '') {
+        // Find the last completed stage (excluding Cancelled)
+        const filteredProgress = order.progress.filter(step => step.stage !== 'Cancelled');
+        for (let i = filteredProgress.length - 1; i >= 0; i--) {
+            if (filteredProgress[i].completedAt !== '') {
                 return i;
             }
         }
@@ -121,6 +122,9 @@ const OrderDetail = () => {
     }
 
     const firstItem = order.items[0];
+
+    // Filter out 'Cancelled' — product journey ends at 'Delivered'
+    const filteredProgress = order.progress.filter(step => step.stage !== 'Cancelled');
     const currentProgressIndex = getCurrentProgressIndex();
 
     const getStepStatus = (index: number): 'completed' | 'current' | 'pending' => {
@@ -194,7 +198,9 @@ const OrderDetail = () => {
                         {order.items.map((item, index) => (
                             item.message && (
                                 <View key={index} style={styles.messageItem}>
-
+                                    <Text style={[styles.messagePrankTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                                        {item.prankTitle}
+                                    </Text>
                                     <Text style={[styles.messageText, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                         "{item.message}"
                                     </Text>
@@ -243,11 +249,11 @@ const OrderDetail = () => {
                     </Text>
 
                     <View style={styles.progressSteps}>
-                        {order.progress.map((step, index) => {
+                        {filteredProgress.map((step, index) => {
                             const stepStatus = getStepStatus(index);
                             const isCompleted = stepStatus === 'completed';
                             const isCurrent = stepStatus === 'current';
-                            const isLast = index === order.progress.length - 1;
+                            const isLast = index === filteredProgress.length - 1;
 
                             // Map stage names to icons
                             const getIconName = (stage: string): string => {
@@ -326,7 +332,7 @@ const OrderDetail = () => {
                         </View>
                         <View style={styles.infoContent}>
                             <Text style={[styles.infoTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                                {order.deliveryLocation.addressLabel}
+                                Address
                             </Text>
                             <Text style={[styles.infoText, { color: theme.grey, fontFamily: Fonts.regular }]}>
                                 {order.deliveryLocation.flatNumber}, {order.deliveryLocation.buildingName}
