@@ -25,8 +25,10 @@ const { width, height } = Dimensions.get('window');
 const Signup = () => {
     const [username, setUsername] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
+    const [referralCode, setReferralCode] = useState('');
+    const [showReferralInput, setShowReferralInput] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({ username: '', phone: '' });
+    const [errors, setErrors] = useState({ username: '', phone: '', referral: '' });
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
@@ -88,6 +90,7 @@ const Signup = () => {
             // Store confirmation result and username globally
             (global as any).confirmationResult = confirmationResult;
             (global as any).signupUsername = username;
+            (global as any).signupReferralCode = referralCode;
 
             setLoading(false);
             router.push({
@@ -95,7 +98,8 @@ const Signup = () => {
                 params: {
                     phoneNumber: mobileNumber,
                     username: username,
-                    isSignup: 'true'
+                    isSignup: 'true',
+                    referralCode: referralCode || ''
                 }
             });
         } catch (error: any) {
@@ -203,6 +207,59 @@ const Signup = () => {
                         {errors.phone ? (
                             <Text style={styles.errorText}>{errors.phone}</Text>
                         ) : null}
+                    </View>
+
+                    {/* Referral Code Input - Collapsible */}
+                    <View style={styles.inputGroup}>
+                        {!showReferralInput ? (
+                            <TouchableOpacity 
+                                style={styles.referralToggle}
+                                onPress={() => setShowReferralInput(true)}
+                            >
+                                <Ionicons name="gift-outline" size={20} color={theme.primary} />
+                                <Text style={[styles.referralToggleText, { color: theme.primary, fontFamily: Fonts.medium }]}>
+                                    Have a referral code?
+                                </Text>
+                            </TouchableOpacity>
+                        ) : (
+                            <View>
+                                <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
+                                    Referral Code (Optional)
+                                </Text>
+                                <View style={[
+                                    styles.inputContainer,
+                                    {
+                                        backgroundColor: theme.background,
+                                        borderColor: errors.referral ? '#FF3B30' : '#E5E5E5'
+                                    }
+                                ]}>
+                                    <Ionicons name="gift-outline" size={20} color={theme.grey} style={styles.inputIcon} />
+                                    <TextInput
+                                        style={[styles.input, { color: theme.text, fontFamily: Fonts.regular }]}
+                                        placeholder="Enter referral code"
+                                        placeholderTextColor={theme.grey}
+                                        value={referralCode}
+                                        onChangeText={(text) => setReferralCode(text.toUpperCase())}
+                                        maxLength={6}
+                                        autoCapitalize="characters"
+                                        editable={!loading}
+                                    />
+                                </View>
+                                {errors.referral ? (
+                                    <Text style={styles.errorText}>{errors.referral}</Text>
+                                ) : null}
+                                <TouchableOpacity 
+                                    onPress={() => {
+                                        setShowReferralInput(false);
+                                        setReferralCode('');
+                                    }}
+                                >
+                                    <Text style={[styles.removeReferralText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                                        Remove referral code
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 </View>
 
@@ -348,6 +405,21 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 17,
         fontWeight: '600',
+    },
+    referralToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        gap: 8,
+    },
+    referralToggleText: {
+        fontSize: 15,
+    },
+    removeReferralText: {
+        fontSize: 13,
+        marginTop: 8,
+        textAlign: 'center',
     },
 });
 

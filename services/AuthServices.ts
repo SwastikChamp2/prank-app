@@ -4,7 +4,7 @@ import {
     ConfirmationResult,
     ApplicationVerifier
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { auth, db } from '../config/firebase.config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -45,7 +45,8 @@ export const verifyOTP = async (
 export const createOrUpdateUser = async (
     userId: string,
     phoneNumber: string,
-    username?: string
+    username?: string,
+    referralCode?: string
 ) => {
     try {
         const userRef = doc(db, 'users', userId);
@@ -63,9 +64,17 @@ export const createOrUpdateUser = async (
                 defaultAddress: {},
                 languageSelection: "English",
                 referralCode: generateReferralCode(),
+                referredBy: referralCode || null,
+                referralCodeUsedAt: referralCode ? serverTimestamp() : null,
+                referralCount: 0,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
+            
+            // If referral code was used, update the referrer's count
+            if (referralCode) {
+                await handleReferralReward(referralCode);
+            }
         } else {
             // Update existing user
             await setDoc(userRef, {
@@ -79,8 +88,130 @@ export const createOrUpdateUser = async (
     }
 };
 
+// Handle referral reward - update referrer's count
+const handleReferralReward = async (referralCode: string) => {
+    try {
+        const usersRef = doc(db, 'users');
+        const snapshot = await getDoc(doc(usersRef, referralCode));
+        
+        // This won't work directly since we need to query by referralCode
+        // We'll use a different approach - get the referrer first
+        const referrer = await getUserByReferralCode(referralCode);
+        
+        if (referrer && referrer.userId) {
+            const referrerRef = doc(db, 'users', referrer.userId);
+            const referrerDoc = await getDoc(referrerRef);
+            const referrerData = referrerDoc.data();
+            const currentReferralCount = referrerData?.referralCount || 0;
+            
+            await setDoc(referrerRef, {
+                referralCount: currentReferralCount + 1,
+            }, { merge: true });
+            
+            console.log('Referral reward applied to:', referrer.userId);
+        }
+    } catch (error) {
+        console.error('Error handling referral reward:', error);
+    }
+};
+
 const generateReferralCode = (): string => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
+};
+
+/**
+ * Get user by referral code
+ */
+export const getUserByReferralCode = async (referralCode: string) => {
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('referralCode', '==', referralCode), limit(1));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            return null;
+        }
+        
+        const docData = snapshot.docs[0].data();
+        return { id: snapshot.docs[0].id, userId: snapshot.docs[0].id, ...docData };
+    } catch (error) {
+        console.error('Error getting user by referral code:', error);
+        throw error;
+    }
+};
+
+/**
+ * Apply referral code - track the referrer
+ */
+export const applyReferralCode = async (
+    userId: string,
+    referralCode: string
+): Promise<{ success: boolean; message: string }> => {
+    try {
+        // Get the referrer user
+        const referrer = await getUserByReferralCode(referralCode);
+        
+        if (!referrer) {
+            return { success: false, message: 'Invalid referral code' };
+        }
+        
+        if (referrer.userId === userId) {
+            return { success: false, message: 'You cannot use your own referral code' };
+        }
+        
+        // Update current user with referrer info
+        const userRef = doc(db, 'users', userId);
+        await setDoc(userRef, {
+            referredBy: referrer.userId,
+            referralCodeUsedAt: serverTimestamp(),
+        }, { merge: true });
+        
+        // Update referrer's referral count
+        const referrerRef = doc(db, 'users', referrer.userId);
+        const referrerDoc = await getDoc(referrerRef);
+        const referrerData = referrerDoc.data();
+        const currentReferralCount = referrerData?.referralCount || 0;
+        
+        await setDoc(referrerRef, {
+            referralCount: currentReferralCount + 1,
+        }, { merge: true });
+        
+        return { success: true, message: 'Referral code applied successfully!' };
+    } catch (error) {
+        console.error('Error applying referral code:', error);
+        return { success: false, message: 'Failed to apply referral code' };
+    }
+};
+
+/**
+ * Get user referral stats
+ */
+export const getUserReferralStats = async (userId: string) => {
+    try {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await getDoc(userRef);
+        
+        if (!userDoc.exists()) {
+            return null;
+        }
+        
+        const userData = userDoc.data();
+        return {
+            referralCode: userData?.referralCode || '',
+            referralCount: userData?.referralCount || 0,
+            referredBy: userData?.referredBy || null,
+        };
+    } catch (error) {
+        console.error('Error getting referral stats:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get the app's referral link base URL
+ */
+export const getReferralLink = (referralCode: string): string => {
+    return `https://donttakecrap.app/ref/${referralCode}`;
 };
 
 export const signOutUser = async () => {

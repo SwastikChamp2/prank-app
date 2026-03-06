@@ -24,10 +24,11 @@ import { signInWithPhoneNumber } from 'firebase/auth';
 const { width, height } = Dimensions.get('window');
 
 const VerifyOTP = () => {
-  const { phoneNumber, username, isSignup } = useLocalSearchParams<{
+const { phoneNumber, username, isSignup, referralCode } = useLocalSearchParams<{
     phoneNumber: string;
     username?: string;
     isSignup: string;
+    referralCode?: string;
   }>();
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -217,7 +218,10 @@ const VerifyOTP = () => {
         ? (username || (global as any).signupUsername)
         : undefined;
 
-      await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave);
+      // Get referral code from params or global state
+      const referralCodeToSave = referralCode || (global as any).signupReferralCode || '';
+
+      await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave, referralCodeToSave);
 
       // Clear global data
       (global as any).confirmationResult = null;
