@@ -1,3 +1,4 @@
+// pages/SelectOccasion.tsx
 import React, { useState } from 'react';
 import {
     View,
@@ -19,7 +20,7 @@ import Footer from '../components/Footer/Footer';
 import { Colors, Fonts } from '../constants/theme';
 import { updateCartItem, CartItem } from '../services/CartService';
 
-const SelectMessage: React.FC = () => {
+const SelectOccasion: React.FC = () => {
     const router = useRouter();
     const params = useLocalSearchParams();
     const colorScheme = useColorScheme();
@@ -39,14 +40,14 @@ const SelectMessage: React.FC = () => {
     const wrapTitle = params.wrapTitle as string;
     const wrapPrice = params.wrapPrice as string;
     const wrapImage = params.wrapImage as string;
+    const message = params.message as string;
 
     const editMode = params.editMode === 'true';
-    const currentMessage = params.currentMessage as string;
+    const currentOccasion = params.currentOccasion as string;
 
-    const [message, setMessage] = useState(currentMessage || '');
+    const [occasion, setOccasion] = useState(currentOccasion || '');
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [agreedToTerms, setAgreedToTerms] = useState(false);
-    const [agreedToTermsAndConditions, setAgreedToTermsAndConditions] = useState(false);
     const [savingToCart, setSavingToCart] = useState(false);
 
     const maxModalHeight = Dimensions.get('window').height * 0.7;
@@ -64,32 +65,32 @@ const SelectMessage: React.FC = () => {
         setSavingToCart(true);
 
         try {
-            // Navigate to SelectOccasion page with all the data
-            router.push({
-                pathname: '/select-occasion',
-                params: {
-                    prankId,
-                    prankTitle,
-                    prankPrice,
-                    prankImage,
-                    quantity: '1',
-                    boxId,
-                    boxTitle,
-                    boxPrice,
-                    boxImage,
-                    wrapId: wrapId || '',
-                    wrapTitle,
-                    wrapPrice: wrapPrice || '0',
-                    wrapImage,
-                    message: message.trim(),
-                }
-            });
+            const cartItem: CartItem = {
+                prankId,
+                prankTitle,
+                prankPrice: parseInt(prankPrice),
+                prankImage,
+                boxId,
+                boxTitle,
+                boxPrice: boxPrice ? parseInt(boxPrice) : null,
+                boxImage,
+                wrapId: wrapId || '',
+                wrapTitle,
+                wrapPrice: wrapPrice ? parseInt(wrapPrice) : null,
+                wrapImage,
+                message: message || '',
+                occasion: occasion.trim(),
+            };
+
+            const success = await updateCartItem(cartItem);
+            if (success) {
+                router.push('/cart');
+            }
         } catch (err) {
-            console.error('Error navigating to occasion:', err);
+            console.error('Error adding to cart:', err);
         } finally {
             setSavingToCart(false);
             setAgreedToTerms(false);
-            setAgreedToTermsAndConditions(false);
         }
     };
 
@@ -103,7 +104,7 @@ const SelectMessage: React.FC = () => {
                     <Ionicons name="chevron-back" size={24} color={theme.text} />
                 </TouchableOpacity>
 
-                <Text style={[styles.headerTitle, { color: theme.text }]}>Select Message</Text>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>Select Occasion</Text>
             </View>
 
             <ScrollView
@@ -114,14 +115,14 @@ const SelectMessage: React.FC = () => {
                 {/* Description */}
                 <View style={styles.descriptionContainer}>
                     <Text style={[styles.descriptionTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
-                        Add Anonymous Message
+                        Occasion of Sending the Gift
                     </Text>
                     <Text style={[styles.descriptionText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                        Write a fun, anonymous message to accompany your prank! (Optional) Keep it light-hearted and appropriate.
+                        Let us know the Occasion for sending the gift so that we can remind you about it in the future
                     </Text>
                 </View>
 
-                {/* Message Text Area */}
+                {/* Occasion Text Area */}
                 <View style={styles.textAreaContainer}>
                     <TextInput
                         style={[
@@ -132,38 +133,47 @@ const SelectMessage: React.FC = () => {
                                 fontFamily: Fonts.regular,
                             }
                         ]}
-                        placeholder="Type your anonymous message here..."
+                        placeholder="e.g., Birthday, Anniversary, Friendship Day, etc."
                         placeholderTextColor={theme.grey}
                         multiline
-                        numberOfLines={10}
+                        numberOfLines={5}
                         textAlignVertical="top"
-                        value={message}
-                        onChangeText={setMessage}
-                        maxLength={50}
+                        value={occasion}
+                        onChangeText={setOccasion}
+                        maxLength={100}
                     />
                     <Text style={[styles.characterCount, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                        {message.length}/50 characters
+                        {occasion.length}/100 characters
                     </Text>
                 </View>
+
+                {/* Message Preview (if exists) */}
+                {message ? (
+                    <View style={[styles.messagePreview, { backgroundColor: theme.lightOrange }]}>
+                        <View style={styles.messagePreviewHeader}>
+                            <Ionicons name="mail" size={20} color={theme.primary} />
+                            <Text style={[styles.messagePreviewLabel, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                                Anonymous Message
+                            </Text>
+                        </View>
+                        <Text style={[styles.messagePreviewText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                            "{message}"
+                        </Text>
+                    </View>
+                ) : null}
 
                 {/* Tips Section */}
                 <View style={styles.tipsContainer}>
                     <View style={styles.tipRow}>
                         <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
                         <Text style={[styles.tipText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                            Keep it fun and light-hearted
+                            Help us remember special occasions
                         </Text>
                     </View>
                     <View style={styles.tipRow}>
                         <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
                         <Text style={[styles.tipText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                            No offensive or harmful content
-                        </Text>
-                    </View>
-                    <View style={styles.tipRow}>
-                        <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                        <Text style={[styles.tipText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                            Respect privacy and boundaries
+                            Get reminders for upcoming events
                         </Text>
                     </View>
                 </View>
@@ -185,7 +195,7 @@ const SelectMessage: React.FC = () => {
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
                             <Text style={[styles.continueButtonText, { fontFamily: Fonts.semiBold }]}>
-                                Continue
+                                Continue to Cart
                             </Text>
                         )}
                     </TouchableOpacity>
@@ -197,7 +207,7 @@ const SelectMessage: React.FC = () => {
             {/* Footer */}
             <Footer />
 
-            {/* Terms and Conditions Modal */}
+            {/* Terms Modal */}
             <Modal
                 visible={showTermsModal}
                 transparent
@@ -229,7 +239,7 @@ const SelectMessage: React.FC = () => {
                                 { color: theme.text, fontFamily: Fonts.bold },
                             ]}
                         >
-                            Message Guidelines
+                            Confirm Your Order
                         </Text>
 
                         {/* Scrollable Content */}
@@ -245,51 +255,23 @@ const SelectMessage: React.FC = () => {
                                     { color: theme.grey, fontFamily: Fonts.regular },
                                 ]}
                             >
-                                By adding a message to your prank, you agree to follow these important guidelines:{"\n\n"}
+                                By proceeding, you confirm that the occasion information provided is accurate. We will use this information to help you remember important dates and provide better service in the future.{"\n\n"}
 
-                                <Text style={{ fontFamily: Fonts.semiBold, color: theme.text }}>Prohibited Content:{"\n"}</Text>
-                                • No threats, harassment, or intimidation of any kind{"\n"}
-                                • No hate speech, discriminatory, or offensive language{"\n"}
-                                • No personal information (addresses, phone numbers, etc.){"\n"}
-                                • No explicit, sexual, or inappropriate content{"\n"}
-                                • No promotion of illegal activities or substances{"\n"}
-                                • No impersonation or false claims{"\n\n"}
-
-                                <Text style={{ fontFamily: Fonts.semiBold, color: theme.text }}>General Rules:{"\n"}</Text>
-                                • Keep messages fun, light-hearted, and appropriate{"\n"}
-                                • Respect the recipient's privacy and dignity{"\n"}
-                                • Messages should be in good taste and non-harmful{"\n"}
-                                • We reserve the right to review and reject inappropriate messages{"\n\n"}
-
-                                <Text style={{ fontFamily: Fonts.semiBold, color: theme.text }}>Your Responsibility:{"\n"}</Text>
-                                You are solely responsible for the content of your message. Violation of these guidelines may result in order cancellation without refund and potential account suspension.{"\n\n"}
-
-                                Please ensure your message is appropriate, respectful, and complies with all guidelines before proceeding.
+                                Please ensure your order details are correct before proceeding to payment.
                             </Text>
                         </ScrollView>
 
-                        {/* Checkboxes */}
-                        {/* First Checkbox - Message Guidelines */}
+                        {/* Checkbox */}
                         <TouchableOpacity style={styles.checkboxContainer} activeOpacity={0.8} onPress={() => setAgreedToTerms(!agreedToTerms)}>
                             <View style={[styles.checkbox, { borderColor: agreedToTerms ? theme.primary : theme.grey, backgroundColor: agreedToTerms ? theme.primary : 'transparent', },]} >
                                 {agreedToTerms && (<Ionicons name="checkmark" size={16} color="#FFFFFF" />)}
                             </View>
-                            <Text style={[styles.checkboxLabel, { color: theme.text, fontFamily: Fonts.regular, },]} > I agree to follow the message guidelines </Text>
-                        </TouchableOpacity>
-
-                        {/* Second Checkbox - Terms & Conditions */}
-                        <TouchableOpacity style={styles.checkboxContainer} activeOpacity={0.8} onPress={() => setAgreedToTermsAndConditions(!agreedToTermsAndConditions)}>
-                            <View style={[styles.checkbox, { borderColor: agreedToTermsAndConditions ? theme.primary : theme.grey, backgroundColor: agreedToTermsAndConditions ? theme.primary : 'transparent', },]} >
-                                {agreedToTermsAndConditions && (<Ionicons name="checkmark" size={16} color="#FFFFFF" />)}
-                            </View>
-                            <Text style={[styles.checkboxLabel, { color: theme.text, fontFamily: Fonts.regular, },]} >
-                                I agree to the <Text style={{ color: theme.primary, textDecorationLine: 'underline' }} onPress={() => router.push('/terms-conditions')}>terms and conditions</Text>
-                            </Text>
+                            <Text style={[styles.checkboxLabel, { color: theme.text, fontFamily: Fonts.regular, },]} > I agree to proceed with this order </Text>
                         </TouchableOpacity>
 
                         {/* Confirm Button */}
-                        <TouchableOpacity style={[styles.confirmButton, { backgroundColor: (agreedToTerms && agreedToTermsAndConditions) ? theme.primary : theme.grey, opacity: (agreedToTerms && agreedToTermsAndConditions) ? 1 : 0.5, },]} onPress={handleConfirmTerms} disabled={!agreedToTerms || !agreedToTermsAndConditions} >
-                            <Text style={[styles.confirmButtonText, { fontFamily: Fonts.semiBold },]} > I agree </Text>
+                        <TouchableOpacity style={[styles.confirmButton, { backgroundColor: agreedToTerms ? theme.primary : theme.grey, opacity: agreedToTerms ? 1 : 0.5, },]} onPress={handleConfirmTerms} disabled={!agreedToTerms} >
+                            <Text style={[styles.confirmButtonText, { fontFamily: Fonts.semiBold },]} > Confirm </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -344,13 +326,32 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 16,
         fontSize: 15,
-        minHeight: 200,
-        maxHeight: 300,
+        minHeight: 120,
+        maxHeight: 200,
     },
     characterCount: {
         fontSize: 12,
         marginTop: 8,
         textAlign: 'right',
+    },
+    messagePreview: {
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 24,
+    },
+    messagePreviewHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
+    },
+    messagePreviewLabel: {
+        fontSize: 14,
+    },
+    messagePreviewText: {
+        fontSize: 13,
+        fontStyle: 'italic',
+        lineHeight: 18,
     },
     tipsContainer: {
         marginBottom: 24,
@@ -406,7 +407,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     termsScrollView: {
-        maxHeight: 300,
+        maxHeight: 200,
         marginBottom: 16,
     },
     termsText: {
@@ -451,4 +452,5 @@ const styles = StyleSheet.create({
     },
 });
 
-export default SelectMessage;
+export default SelectOccasion;
+

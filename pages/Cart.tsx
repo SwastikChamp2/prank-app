@@ -126,7 +126,7 @@ const Cart = () => {
         );
     };
 
-    const handleEditItem = (prankId: string, itemType: 'prank' | 'box' | 'wrap' | 'message', item: CartItem) => {
+    const handleEditItem = (prankId: string, itemType: 'prank' | 'box' | 'wrap' | 'message' | 'occasion', item: CartItem) => {
         setEditingItemId(prankId);
         setEditingItemType(itemType);
 
@@ -145,6 +145,7 @@ const Cart = () => {
                     wrapPrice: item.wrapPrice?.toString() || '0',
                     wrapImage: item.wrapImage,
                     message: item.message || '',
+                    occasion: item.occasion || '',
                 }
             });
         } else if (itemType === 'box') {
@@ -163,6 +164,7 @@ const Cart = () => {
                     wrapPrice: item.wrapPrice?.toString() || '0',
                     wrapImage: item.wrapImage,
                     message: item.message || '',
+                    occasion: item.occasion || '',
                 }
             });
         } else if (itemType === 'wrap') {
@@ -181,6 +183,7 @@ const Cart = () => {
                     boxImage: item.boxImage,
                     currentWrapId: item.wrapId,
                     message: item.message || '',
+                    occasion: item.occasion || '',
                 }
             });
         } else if (itemType === 'message') {
@@ -202,6 +205,29 @@ const Cart = () => {
                     wrapPrice: item.wrapPrice?.toString() || '0',
                     wrapImage: item.wrapImage,
                     currentMessage: item.message || '',
+                    occasion: item.occasion || '',
+                }
+            });
+        } else if (itemType === 'occasion') {
+            router.push({
+                pathname: '/select-occasion',
+                params: {
+                    editMode: 'true',
+                    prankId: item.prankId,
+                    prankTitle: item.prankTitle,
+                    prankPrice: item.prankPrice.toString(),
+                    prankImage: item.prankImage,
+                    quantity: '1',
+                    boxId: item.boxId,
+                    boxTitle: item.boxTitle,
+                    boxPrice: item.boxPrice?.toString() || '0',
+                    boxImage: item.boxImage,
+                    wrapId: item.wrapId,
+                    wrapTitle: item.wrapTitle,
+                    wrapPrice: item.wrapPrice?.toString() || '0',
+                    wrapImage: item.wrapImage,
+                    message: item.message || '',
+                    currentOccasion: item.occasion || '',
                 }
             });
         }
@@ -684,6 +710,50 @@ const Cart = () => {
                                         </Text>
                                     </TouchableOpacity>
                                 )}
+
+                                {/* Occasion Item - NEW */}
+                                {item.occasion ? (
+                                    <View style={[styles.occasionItem, { backgroundColor: theme.lightPurple || '#F3E5F5' }]}>
+                                        <View style={styles.occasionIconContainer}>
+                                            <Ionicons name="calendar" size={24} color={theme.primary} />
+                                        </View>
+                                        <View style={styles.occasionDetails}>
+                                            <Text
+                                                style={[
+                                                    styles.occasionLabel,
+                                                    { color: theme.text, fontFamily: Fonts.semiBold },
+                                                ]}
+                                            >
+                                                Occasion
+                                            </Text>
+                                            <Text
+                                                style={[
+                                                    styles.occasionText,
+                                                    { color: theme.grey, fontFamily: Fonts.regular },
+                                                ]}
+                                                numberOfLines={2}
+                                            >
+                                                {item.occasion}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity
+                                            style={styles.editIconButton}
+                                            onPress={() => handleEditItem(item.prankId, 'occasion', item)}
+                                        >
+                                            <Ionicons name="create-outline" size={20} color={theme.primary} />
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <TouchableOpacity
+                                        style={[styles.addOccasionButton, { borderColor: theme.primary, backgroundColor: theme.lightPurple || '#F3E5F5' }]}
+                                        onPress={() => handleEditItem(item.prankId, 'occasion', item)}
+                                    >
+                                        <Ionicons name="add-circle-outline" size={24} color={theme.primary} />
+                                        <Text style={[styles.addOccasionText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                                            Add Occasion
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         ))
                     )}
@@ -1160,6 +1230,51 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     addMessageText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    // Occasion styles
+    occasionItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 16,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        marginTop: 8,
+        gap: 12,
+    },
+    occasionIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    occasionDetails: {
+        flex: 1,
+    },
+    occasionLabel: {
+        fontSize: 14,
+        marginBottom: 4,
+    },
+    occasionText: {
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    addOccasionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        marginTop: 8,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        gap: 8,
+    },
+    addOccasionText: {
         fontSize: 14,
         fontWeight: '600',
     },

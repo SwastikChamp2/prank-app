@@ -46,7 +46,9 @@ export const createOrUpdateUser = async (
     userId: string,
     phoneNumber: string,
     username?: string,
-    referralCode?: string
+    referralCode?: string,
+    gender?: string,
+    dateOfBirth?: string
 ) => {
     try {
         const userRef = doc(db, 'users', userId);
@@ -58,7 +60,8 @@ export const createOrUpdateUser = async (
                 userId: userId,
                 phoneNumber: phoneNumber,
                 username: username || '',
-                gender: "Others",
+                gender: gender || "Others",
+                dateOfBirth: dateOfBirth || null,
                 address: [],
                 orders: [],
                 defaultAddress: {},
@@ -80,6 +83,8 @@ export const createOrUpdateUser = async (
             await setDoc(userRef, {
                 updatedAt: serverTimestamp(),
                 ...(username && { username }),
+                ...(gender && { gender }),
+                ...(dateOfBirth && { dateOfBirth }),
             }, { merge: true });
         }
     } catch (error) {
@@ -91,29 +96,43 @@ export const createOrUpdateUser = async (
 // Handle referral reward - update referrer's count
 const handleReferralReward = async (referralCode: string) => {
     try {
-        const usersRef = doc(db, 'users');
-        const snapshot = await getDoc(doc(usersRef, referralCode));
-        
-        // This won't work directly since we need to query by referralCode
-        // We'll use a different approach - get the referrer first
+        // Find the referrer using referral code
         const referrer = await getUserByReferralCode(referralCode);
-        
-        if (referrer && referrer.userId) {
-            const referrerRef = doc(db, 'users', referrer.userId);
-            const referrerDoc = await getDoc(referrerRef);
-            const referrerData = referrerDoc.data();
-            const currentReferralCount = referrerData?.referralCount || 0;
-            
-            await setDoc(referrerRef, {
-                referralCount: currentReferralCount + 1,
-            }, { merge: true });
-            
-            console.log('Referral reward applied to:', referrer.userId);
+
+        if (!referrer || !referrer.userId) {
+            console.log('No referrer found for code:', referralCode);
+            return;
         }
+
+        const referrerRef = doc(db, 'users', referrer.userId);
+        const referrerDoc = await getDoc(referrerRef);
+
+        if (!referrerDoc.exists()) {
+            console.log('Referrer document not found');
+            return;
+        }
+
+        const referrerData = referrerDoc.data();
+        const currentReferralCount = referrerData?.referralCount || 0;
+
+        await setDoc(
+            referrerRef,
+            {
+                referralCount: currentReferralCount + 1,
+                updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+        );
+
+        console.log('Referral reward applied to:', referrer.userId);
     } catch (error) {
         console.error('Error handling referral reward:', error);
     }
 };
+
+/**
+ * Generate a referral code
+ */
 
 const generateReferralCode = (): string => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();

@@ -218,10 +218,14 @@ const { phoneNumber, username, isSignup, referralCode } = useLocalSearchParams<{
         ? (username || (global as any).signupUsername)
         : undefined;
 
+      // Get gender and dateOfBirth from params or global state
+      const genderToSave = (global as any).signupGender || 'Others';
+      const dateOfBirthToSave = (global as any).signupDateOfBirth || '';
+
       // Get referral code from params or global state
       const referralCodeToSave = referralCode || (global as any).signupReferralCode || '';
 
-      await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave, referralCodeToSave);
+      await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave, referralCodeToSave, genderToSave, dateOfBirthToSave);
 
       // Clear global data
       (global as any).confirmationResult = null;

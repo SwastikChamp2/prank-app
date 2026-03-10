@@ -15,6 +15,7 @@ export interface CartItem {
     wrapPrice: number | null;
     wrapImage: string;
     message?: string;
+    occasion?: string;
 }
 
 export interface CartData {

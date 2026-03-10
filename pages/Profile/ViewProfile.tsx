@@ -13,6 +13,9 @@ import {
     Platform,
     Alert,
     ActivityIndicator,
+    Modal,
+    TouchableWithoutFeedback,
+    StyleSheet as RNStyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,10 +33,17 @@ const ViewProfile = () => {
     const [username, setUsername] = useState('');
     const [gender, setGender] = useState<'Male' | 'Female' | 'Others'>('Others');
     const [showGenderDropdown, setShowGenderDropdown] = useState(false);
+    const [dateOfBirth, setDateOfBirth] = useState('');
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [userId, setUserId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+
+    // Date picker state
+    const [selectedDay, setSelectedDay] = useState('');
+    const [selectedMonth, setSelectedMonth] = useState('');
+    const [selectedYear, setSelectedYear] = useState('');
 
     // Fetch user data from Firebase
     useEffect(() => {
@@ -49,8 +59,6 @@ const ViewProfile = () => {
             }
         });
 
-
-
         return () => unsubscribe();
     }, []);
 
@@ -64,6 +72,7 @@ const ViewProfile = () => {
                 setUsername(userData.username || '');
                 setGender(userData.gender || 'Others');
                 setPhoneNumber(userData.phoneNumber || '');
+                setDateOfBirth(userData.dateOfBirth || '');
             } else {
                 Alert.alert('Error', 'User data not found');
             }
@@ -114,6 +123,7 @@ const ViewProfile = () => {
                 fetchUserData(userId);
             }
             setShowGenderDropdown(false);
+            setShowDatePicker(false);
         }
         setIsEditing(!isEditing);
     };
@@ -136,12 +146,14 @@ const ViewProfile = () => {
             await updateDoc(userDocRef, {
                 username: username.trim(),
                 gender: gender,
+                dateOfBirth: dateOfBirth,
                 updatedAt: serverTimestamp(),
             });
 
             Alert.alert('Success', 'Profile updated successfully');
             setIsEditing(false);
             setShowGenderDropdown(false);
+            setShowDatePicker(false);
         } catch (error) {
             console.error('Error updating profile:', error);
             Alert.alert('Error', 'Failed to update profile. Please try again.');
@@ -153,6 +165,33 @@ const ViewProfile = () => {
     const handleGenderSelect = (selectedGender: 'Male' | 'Female' | 'Others') => {
         setGender(selectedGender);
         setShowGenderDropdown(false);
+    };
+
+    const handleDateChange = (type: 'day' | 'month' | 'year', value: string) => {
+        const numericValue = value.replace(/[^0-9]/g, '');
+        
+        if (type === 'day') {
+            const day = numericValue.slice(0, 2);
+            setSelectedDay(day);
+        } else if (type === 'month') {
+            const month = numericValue.slice(0, 2);
+            setSelectedMonth(month);
+        } else if (type === 'year') {
+            const year = numericValue.slice(0, 4);
+            setSelectedYear(year);
+        }
+    };
+
+    const handleConfirmDate = () => {
+        if (selectedDay && selectedMonth && selectedYear) {
+            setDateOfBirth(`${selectedDay}/${selectedMonth}/${selectedYear}`);
+            setShowDatePicker(false);
+        }
+    };
+
+    const formatDisplayDate = (dob: string) => {
+        if (!dob) return 'Select Date of Birth';
+        return dob;
     };
 
     if (loading) {
@@ -325,6 +364,42 @@ const ViewProfile = () => {
                             </View>
                         )}
                     </View>
+
+                    {/* Date of Birth Field */}
+                    <View style={styles.fieldContainer}>
+                        <Text style={[styles.fieldLabel, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                            Date of Birth <Text style={{ color: '#FF3B30' }}>*</Text>
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.inputContainer, { backgroundColor: theme.background }]}
+                            onPress={() => isEditing && setShowDatePicker(true)}
+                            disabled={!isEditing}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="calendar-outline" size={20} color={theme.primary} />
+                            <Text
+                                style={[
+                                    styles.input,
+                                    {
+                                        color: theme.text,
+                                        fontFamily: Fonts.regular
+                                    }
+                                ]}
+                            >
+                                {formatDisplayDate(dateOfBirth)}
+                            </Text>
+                            {isEditing && (
+                                <Ionicons
+                                    name="chevron-down"
+                                    size={20}
+                                    color={theme.grey}
+                                />
+                            )}
+                        </TouchableOpacity>
+                        <Text style={[styles.helperText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                            We would love to know your birthday, so that we can share a fun FREE prank on your birthday.
+                        </Text>
+                    </View>
                 </ScrollView>
 
                 {/* Save Changes Button - Only show when editing */}
@@ -349,6 +424,81 @@ const ViewProfile = () => {
                         </TouchableOpacity>
                     </View>
                 )}
+
+                {/* Date Picker Modal */}
+                <Modal
+                    visible={showDatePicker}
+                    transparent
+                    animationType="slide"
+                    statusBarTranslucent
+                    onRequestClose={() => setShowDatePicker(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+                            <View style={RNStyleSheet.absoluteFillObject} />
+                        </TouchableWithoutFeedback>
+
+                        <View style={[styles.datePickerContainer, { backgroundColor: theme.background }]}>
+                            <View style={styles.datePickerHandle} />
+                            
+                            <Text style={[styles.datePickerTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
+                                Select Date of Birth
+                            </Text>
+
+                            <View style={styles.dateInputRow}>
+                                {/* Day Input */}
+                                <View style={[styles.dateInputBox, { backgroundColor: theme.searchBg || '#F5F5F5' }]}>
+                                    <TextInput
+                                        style={[styles.dateInput, { color: theme.text, fontFamily: Fonts.semiBold }]}
+                                        placeholder="DD"
+                                        placeholderTextColor={theme.grey}
+                                        keyboardType="numeric"
+                                        maxLength={2}
+                                        value={selectedDay}
+                                        onChangeText={(value) => handleDateChange('day', value)}
+                                    />
+                                </View>
+                                <Text style={[styles.dateSeparator, { color: theme.text }]}>/</Text>
+                                
+                                {/* Month Input */}
+                                <View style={[styles.dateInputBox, { backgroundColor: theme.searchBg || '#F5F5F5' }]}>
+                                    <TextInput
+                                        style={[styles.dateInput, { color: theme.text, fontFamily: Fonts.semiBold }]}
+                                        placeholder="MM"
+                                        placeholderTextColor={theme.grey}
+                                        keyboardType="numeric"
+                                        maxLength={2}
+                                        value={selectedMonth}
+                                        onChangeText={(value) => handleDateChange('month', value)}
+                                    />
+                                </View>
+                                <Text style={[styles.dateSeparator, { color: theme.text }]}>/</Text>
+                                
+                                {/* Year Input */}
+                                <View style={[styles.dateInputBox, { backgroundColor: theme.searchBg || '#F5F5F5' }]}>
+                                    <TextInput
+                                        style={[styles.dateInput, { color: theme.text, fontFamily: Fonts.semiBold }]}
+                                        placeholder="YYYY"
+                                        placeholderTextColor={theme.grey}
+                                        keyboardType="numeric"
+                                        maxLength={4}
+                                        value={selectedYear}
+                                        onChangeText={(value) => handleDateChange('year', value)}
+                                    />
+                                </View>
+                            </View>
+
+                            <TouchableOpacity
+                                style={[styles.confirmDateButton, { backgroundColor: theme.primary }]}
+                                onPress={handleConfirmDate}
+                            >
+                                <Text style={[styles.confirmDateText, { fontFamily: Fonts.semiBold }]}>
+                                    Confirm
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
             </View>
         </KeyboardAvoidingView>
     );
@@ -435,7 +585,7 @@ const styles = StyleSheet.create({
     helperText: {
         fontSize: 12,
         marginTop: 6,
-        marginLeft: 16,
+        marginLeft: 4,
     },
     dropdownContainer: {
         marginTop: 8,
@@ -479,6 +629,67 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
     },
+    // Date Picker Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    datePickerContainer: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingHorizontal: 24,
+        paddingTop: 16,
+        paddingBottom: 32,
+    },
+    datePickerHandle: {
+        width: 40,
+        height: 4,
+        backgroundColor: '#D1D5DB',
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 16,
+    },
+    datePickerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        marginBottom: 24,
+        textAlign: 'center',
+    },
+    dateInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+    },
+    dateInputBox: {
+        width: 70,
+        height: 56,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    dateInput: {
+        fontSize: 20,
+        textAlign: 'center',
+        width: '100%',
+    },
+    dateSeparator: {
+        fontSize: 24,
+        fontWeight: '600',
+        marginHorizontal: 8,
+    },
+    confirmDateButton: {
+        paddingVertical: 16,
+        borderRadius: 28,
+        alignItems: 'center',
+    },
+    confirmDateText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '600',
+    },
 });
 
 export default ViewProfile;
+
