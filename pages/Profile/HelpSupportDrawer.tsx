@@ -23,9 +23,9 @@ const HelpSupportDrawer: React.FC<HelpSupportDrawerProps> = ({ visible, onClose 
     const theme = Colors[colorScheme ?? 'light'];
 
     const contactInfo = {
-        email: 'support@helmetwash.com',
-        phone: '+91 98765 43210',
-        whatsapp: '+91 98765 43210',
+        email: 'support@donttakecrap.com',
+        phone: '+91 7718837352',
+        whatsapp: '+91 7718837352',
         address: '123 Clean Street, Tech Park\nMumbai, Maharashtra 400001\nIndia',
         workingHours: 'Mon - Sat: 9:00 AM - 8:00 PM\nSunday: 10:00 AM - 6:00 PM',
     };
