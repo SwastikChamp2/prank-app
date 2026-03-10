@@ -195,7 +195,7 @@ const SelectOccasion: React.FC = () => {
                             <ActivityIndicator color="#FFFFFF" />
                         ) : (
                             <Text style={[styles.continueButtonText, { fontFamily: Fonts.semiBold }]}>
-                                Continue to Cart
+                                Continue
                             </Text>
                         )}
                     </TouchableOpacity>
@@ -380,6 +380,7 @@ const styles = StyleSheet.create({
     continueButtonText: {
         color: '#FFFFFF',
         fontSize: 16,
+        fontWeight: '600',
     },
     modalOverlay: {
         flex: 1,
