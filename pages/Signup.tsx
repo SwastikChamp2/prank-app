@@ -12,9 +12,6 @@ import {
     Image,
     Alert,
     ActivityIndicator,
-    Modal,
-    TouchableWithoutFeedback,
-    StyleSheet as RNStyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,27 +25,18 @@ const { width, height } = Dimensions.get('window');
 const Signup = () => {
     const [username, setUsername] = useState('');
     const [mobileNumber, setMobileNumber] = useState('');
-    const [gender, setGender] = useState<'Male' | 'Female' | 'Others'>('Others');
-    const [showGenderDropdown, setShowGenderDropdown] = useState(false);
-    const [dateOfBirth, setDateOfBirth] = useState('');
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [referralCode, setReferralCode] = useState('');
     const [showReferralInput, setShowReferralInput] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState({ username: '', phone: '', gender: '', dateOfBirth: '', referral: '' });
+    const [errors, setErrors] = useState({ username: '', phone: '', referral: '' });
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
     const recaptchaVerifier = useRef(null);
 
-    // Date picker state
-    const [selectedDay, setSelectedDay] = useState('');
-    const [selectedMonth, setSelectedMonth] = useState('');
-    const [selectedYear, setSelectedYear] = useState('');
-
     const validateForm = () => {
         let isValid = true;
-        let newErrors = { username: '', phone: '', gender: '', dateOfBirth: '', referral: '' };
+        let newErrors = { username: '', phone: '', referral: '' };
 
         if (!username.trim()) {
             newErrors.username = 'Name is required';
@@ -63,16 +51,6 @@ const Signup = () => {
             isValid = false;
         } else if (mobileNumber.length !== 10) {
             newErrors.phone = 'Please enter a valid 10-digit phone number';
-            isValid = false;
-        }
-
-        if (!gender) {
-            newErrors.gender = 'Gender is required';
-            isValid = false;
-        }
-
-        if (!dateOfBirth) {
-            newErrors.dateOfBirth = 'Date of Birth is required';
             isValid = false;
         }
 
@@ -95,45 +73,6 @@ const Signup = () => {
         }
     };
 
-    const handleGenderSelect = (selectedGender: 'Male' | 'Female' | 'Others') => {
-        setGender(selectedGender);
-        setShowGenderDropdown(false);
-        if (errors.gender) {
-            setErrors({ ...errors, gender: '' });
-        }
-    };
-
-    const handleDateChange = (type: 'day' | 'month' | 'year', value: string) => {
-        const numericValue = value.replace(/[^0-9]/g, '');
-        
-        if (type === 'day') {
-            const day = numericValue.slice(0, 2);
-            setSelectedDay(day);
-        } else if (type === 'month') {
-            const month = numericValue.slice(0, 2);
-            setSelectedMonth(month);
-        } else if (type === 'year') {
-            const year = numericValue.slice(0, 4);
-            setSelectedYear(year);
-        }
-        
-        if (errors.dateOfBirth) {
-            setErrors({ ...errors, dateOfBirth: '' });
-        }
-    };
-
-    const handleConfirmDate = () => {
-        if (selectedDay && selectedMonth && selectedYear) {
-            setDateOfBirth(`${selectedDay}/${selectedMonth}/${selectedYear}`);
-            setShowDatePicker(false);
-        }
-    };
-
-    const formatDisplayDate = (dob: string) => {
-        if (!dob) return 'Select Date of Birth';
-        return dob;
-    };
-
     const handleSignUp = async () => {
         if (!validateForm()) {
             return;
@@ -148,11 +87,9 @@ const Signup = () => {
                 recaptchaVerifier.current
             );
 
-            // Store confirmation result and user data globally
+            // Store confirmation result and user data globally for later use
             (global as any).confirmationResult = confirmationResult;
             (global as any).signupUsername = username;
-            (global as any).signupGender = gender;
-            (global as any).signupDateOfBirth = dateOfBirth;
             (global as any).signupReferralCode = referralCode;
 
             setLoading(false);
@@ -216,7 +153,7 @@ const Signup = () => {
 
                 {/* Form */}
                 <View style={styles.form}>
-                    {/* Username Input - Changed to Name */}
+                    {/* Name Input */}
                     <View style={styles.inputGroup}>
                         <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
                             Name <Text style={{ color: '#FF3B30' }}>*</Text>
@@ -269,99 +206,6 @@ const Signup = () => {
                         </View>
                         {errors.phone ? (
                             <Text style={styles.errorText}>{errors.phone}</Text>
-                        ) : null}
-                    </View>
-
-                    {/* Gender Field - NEW */}
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
-                            Gender <Text style={{ color: '#FF3B30' }}>*</Text>
-                        </Text>
-                        <TouchableOpacity
-                            style={[
-                                styles.inputContainer,
-                                {
-                                    backgroundColor: theme.background,
-                                    borderColor: errors.gender ? '#FF3B30' : '#E5E5E5'
-                                }
-                            ]}
-                            onPress={() => setShowGenderDropdown(!showGenderDropdown)}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="male-female-outline" size={20} color={theme.grey} style={styles.inputIcon} />
-                            <Text style={[styles.inputText, { color: theme.text, fontFamily: Fonts.regular, flex: 1 }]}>
-                                {gender}
-                            </Text>
-                            <Ionicons
-                                name={showGenderDropdown ? "chevron-up" : "chevron-down"}
-                                size={20}
-                                color={theme.grey}
-                            />
-                        </TouchableOpacity>
-
-                        {/* Gender Dropdown */}
-                        {showGenderDropdown && (
-                            <View style={[styles.dropdownContainer, { backgroundColor: theme.background, borderColor: '#E5E5E5' }]}>
-                                {['Male', 'Female', 'Others'].map((option) => (
-                                    <TouchableOpacity
-                                        key={option}
-                                        style={[
-                                            styles.dropdownItem,
-                                            { borderBottomColor: theme.border }
-                                        ]}
-                                        onPress={() => handleGenderSelect(option as 'Male' | 'Female' | 'Others')}
-                                        activeOpacity={0.7}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.dropdownText,
-                                                {
-                                                    color: gender === option ? theme.primary : theme.text,
-                                                    fontFamily: gender === option ? Fonts.semiBold : Fonts.regular
-                                                }
-                                            ]}
-                                        >
-                                            {option}
-                                        </Text>
-                                        {gender === option && (
-                                            <Ionicons name="checkmark" size={20} color={theme.primary} />
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        )}
-                        {errors.gender ? (
-                            <Text style={styles.errorText}>{errors.gender}</Text>
-                        ) : null}
-                    </View>
-
-                    {/* Date of Birth Field - NEW */}
-                    <View style={styles.inputGroup}>
-                        <Text style={[styles.label, { color: theme.text, fontFamily: Fonts.medium }]}>
-                            Date of Birth <Text style={{ color: '#FF3B30' }}>*</Text>
-                        </Text>
-                        <TouchableOpacity
-                            style={[
-                                styles.inputContainer,
-                                {
-                                    backgroundColor: theme.background,
-                                    borderColor: errors.dateOfBirth ? '#FF3B30' : '#E5E5E5'
-                                }
-                            ]}
-                            onPress={() => setShowDatePicker(true)}
-                            activeOpacity={0.7}
-                        >
-                            <Ionicons name="calendar-outline" size={20} color={theme.grey} style={styles.inputIcon} />
-                            <Text style={[styles.inputText, { color: theme.text, fontFamily: Fonts.regular, flex: 1 }]}>
-                                {formatDisplayDate(dateOfBirth)}
-                            </Text>
-                            <Ionicons name="chevron-down" size={20} color={theme.grey} />
-                        </TouchableOpacity>
-                        <Text style={[styles.helperText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-                            We would love to know your birthday, so that we can share a fun FREE prank on your birthday.
-                        </Text>
-                        {errors.dateOfBirth ? (
-                            <Text style={styles.errorText}>{errors.dateOfBirth}</Text>
                         ) : null}
                     </View>
 
@@ -449,81 +293,6 @@ const Signup = () => {
                 style={styles.bottomDecoration}
                 resizeMode="contain"
             />
-
-            {/* Date Picker Modal */}
-            <Modal
-                visible={showDatePicker}
-                transparent
-                animationType="slide"
-                statusBarTranslucent
-                onRequestClose={() => setShowDatePicker(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
-                        <View style={RNStyleSheet.absoluteFillObject} />
-                    </TouchableWithoutFeedback>
-
-                    <View style={[styles.datePickerContainer, { backgroundColor: theme.background }]}>
-                        <View style={styles.datePickerHandle} />
-                        
-                        <Text style={[styles.datePickerTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
-                            Select Date of Birth
-                        </Text>
-
-                        <View style={styles.dateInputRow}>
-                            {/* Day Input */}
-                            <View style={[styles.dateInputBox, { backgroundColor: theme.searchBg || '#F5F5F5' }]}>
-                                <TextInput
-                                    style={[styles.dateInput, { color: theme.text, fontFamily: Fonts.semiBold }]}
-                                    placeholder="DD"
-                                    placeholderTextColor={theme.grey}
-                                    keyboardType="numeric"
-                                    maxLength={2}
-                                    value={selectedDay}
-                                    onChangeText={(value) => handleDateChange('day', value)}
-                                />
-                            </View>
-                            <Text style={[styles.dateSeparator, { color: theme.text }]}>/</Text>
-                            
-                            {/* Month Input */}
-                            <View style={[styles.dateInputBox, { backgroundColor: theme.searchBg || '#F5F5F5' }]}>
-                                <TextInput
-                                    style={[styles.dateInput, { color: theme.text, fontFamily: Fonts.semiBold }]}
-                                    placeholder="MM"
-                                    placeholderTextColor={theme.grey}
-                                    keyboardType="numeric"
-                                    maxLength={2}
-                                    value={selectedMonth}
-                                    onChangeText={(value) => handleDateChange('month', value)}
-                                />
-                            </View>
-                            <Text style={[styles.dateSeparator, { color: theme.text }]}>/</Text>
-                            
-                            {/* Year Input */}
-                            <View style={[styles.dateInputBox, { backgroundColor: theme.searchBg || '#F5F5F5' }]}>
-                                <TextInput
-                                    style={[styles.dateInput, { color: theme.text, fontFamily: Fonts.semiBold }]}
-                                    placeholder="YYYY"
-                                    placeholderTextColor={theme.grey}
-                                    keyboardType="numeric"
-                                    maxLength={4}
-                                    value={selectedYear}
-                                    onChangeText={(value) => handleDateChange('year', value)}
-                                />
-                            </View>
-                        </View>
-
-                        <TouchableOpacity
-                            style={[styles.confirmDateButton, { backgroundColor: theme.primary }]}
-                            onPress={handleConfirmDate}
-                        >
-                            <Text style={[styles.confirmDateText, { fontFamily: Fonts.semiBold }]}>
-                                Confirm
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 };
@@ -605,45 +374,11 @@ const styles = StyleSheet.create({
         fontSize: 15,
         height: '100%',
     },
-    inputText: {
-        flex: 1,
-        fontSize: 15,
-    },
     errorText: {
         color: '#FF3B30',
         fontSize: 12,
         marginTop: 4,
         marginLeft: 4,
-    },
-    helperText: {
-        fontSize: 12,
-        marginTop: 8,
-        lineHeight: 16,
-    },
-    dropdownContainer: {
-        marginTop: 8,
-        borderRadius: 12,
-        borderWidth: 1,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: {
-            width: 0,
-            height: 2,
-        },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    dropdownItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        borderBottomWidth: 1,
-    },
-    dropdownText: {
-        fontSize: 15,
     },
     spacer: {
         flex: 1,
@@ -685,66 +420,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         marginTop: 8,
         textAlign: 'center',
-    },
-    // Date Picker Modal Styles
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    datePickerContainer: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        paddingHorizontal: 24,
-        paddingTop: 16,
-        paddingBottom: 32,
-    },
-    datePickerHandle: {
-        width: 40,
-        height: 4,
-        backgroundColor: '#D1D5DB',
-        borderRadius: 2,
-        alignSelf: 'center',
-        marginBottom: 16,
-    },
-    datePickerTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    dateInputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 24,
-    },
-    dateInputBox: {
-        width: 70,
-        height: 56,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    dateInput: {
-        fontSize: 20,
-        textAlign: 'center',
-        width: '100%',
-    },
-    dateSeparator: {
-        fontSize: 24,
-        fontWeight: '600',
-        marginHorizontal: 8,
-    },
-    confirmDateButton: {
-        paddingVertical: 16,
-        borderRadius: 28,
-        alignItems: 'center',
-    },
-    confirmDateText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '600',
     },
 });
 

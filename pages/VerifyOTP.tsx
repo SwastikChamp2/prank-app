@@ -190,7 +190,7 @@ const { phoneNumber, username, isSignup, referralCode } = useLocalSearchParams<{
     });
   };
 
-  const handleVerify = async () => {
+const handleVerify = async () => {
     const enteredOtp = otp.join('');
 
     // Check if OTP is complete
@@ -213,32 +213,40 @@ const { phoneNumber, username, isSignup, referralCode } = useLocalSearchParams<{
 
       console.log('User verified:', user.uid);
 
-      // Create or update user in Firestore
-      const usernameToSave = isSignup === 'true'
-        ? (username || (global as any).signupUsername)
-        : undefined;
-
-      // Get gender and dateOfBirth from params or global state
-      const genderToSave = (global as any).signupGender || 'Others';
-      const dateOfBirthToSave = (global as any).signupDateOfBirth || '';
-
-      // Get referral code from params or global state
-      const referralCodeToSave = referralCode || (global as any).signupReferralCode || '';
-
-      await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave, referralCodeToSave, genderToSave, dateOfBirthToSave);
-
-      // Clear global data
+      // Clear global confirmation result
       (global as any).confirmationResult = null;
-      (global as any).signupUsername = null;
 
       setLoading(false);
 
-      // Show success
-      setShowConfetti(true);
-      startConfettiAnimation();
-      setTimeout(() => {
-        setShowSuccessModal(true);
-      }, 500);
+      // For signup flow, redirect to ProfileSetup to collect Gender and DOB
+      if (isSignup === 'true') {
+        router.replace({
+          pathname: '/profile-setup',
+          params: {
+            userId: user.uid,
+            phoneNumber: `+91${phoneNumber}`,
+            username: username || (global as any).signupUsername || '',
+            referralCode: referralCode || (global as any).signupReferralCode || ''
+          }
+        });
+      } else {
+        // For login flow, create/update user and go to home
+        const usernameToSave = (global as any).signupUsername;
+        const referralCodeToSave = referralCode || (global as any).signupReferralCode || '';
+        
+        await createOrUpdateUser(user.uid, `+91${phoneNumber}`, usernameToSave, referralCodeToSave);
+        
+        // Clear global data
+        (global as any).signupUsername = null;
+        (global as any).signupReferralCode = null;
+
+        // Show success
+        setShowConfetti(true);
+        startConfettiAnimation();
+        setTimeout(() => {
+          setShowSuccessModal(true);
+        }, 500);
+      }
 
     } catch (error: any) {
       setLoading(false);

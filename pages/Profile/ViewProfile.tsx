@@ -17,7 +17,7 @@ import {
     TouchableWithoutFeedback,
     StyleSheet as RNStyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../../constants/theme';
 import { auth, db } from '../../config/firebase.config';
@@ -28,6 +28,7 @@ const ViewProfile = () => {
     const colorScheme = useColorScheme();
     const theme = Colors[colorScheme ?? 'light'];
     const router = useRouter();
+    const { fromSignup } = useLocalSearchParams<{ fromSignup?: string }>();
 
     const [isEditing, setIsEditing] = useState(false);
     const [username, setUsername] = useState('');
@@ -61,6 +62,13 @@ const ViewProfile = () => {
 
         return () => unsubscribe();
     }, []);
+
+    // Auto-enable editing mode when coming from signup
+    useEffect(() => {
+        if (!loading && fromSignup === 'true') {
+            setIsEditing(true);
+        }
+    }, [loading, fromSignup]);
 
     const fetchUserData = async (uid: string) => {
         try {
@@ -191,6 +199,21 @@ const ViewProfile = () => {
 
     const formatDisplayDate = (dob: string) => {
         if (!dob) return 'Select Date of Birth';
+        
+        // Parse DD/MM/YYYY format and convert to "D MMM YYYY" format
+        const parts = dob.split('/');
+        if (parts.length === 3) {
+            const day = parseInt(parts[0], 10);
+            const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+            const year = parts[2];
+            
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            
+            if (month >= 0 && month < 12) {
+                return `${day} ${months[month]} ${year}`;
+            }
+        }
+        
         return dob;
     };
 
@@ -366,7 +389,7 @@ const ViewProfile = () => {
                     </View>
 
                     {/* Date of Birth Field */}
-                    <View style={styles.fieldContainer}>
+                    <View style={[styles.fieldContainer, { marginBottom: 40 }]}>
                         <Text style={[styles.fieldLabel, { color: theme.text, fontFamily: Fonts.semiBold }]}>
                             Date of Birth <Text style={{ color: '#FF3B30' }}>*</Text>
                         </Text>
@@ -444,6 +467,15 @@ const ViewProfile = () => {
                             <Text style={[styles.datePickerTitle, { color: theme.text, fontFamily: Fonts.bold }]}>
                                 Select Date of Birth
                             </Text>
+
+                            {/* Selected Date Preview */}
+                            {selectedDay && selectedMonth && selectedYear && (
+                                <View style={[styles.datePreviewContainer, { backgroundColor: theme.primary + '15', borderColor: theme.primary }]}>
+                                    <Text style={[styles.datePreviewText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                                        {formatDisplayDate(`${selectedDay}/${selectedMonth}/${selectedYear}`)}
+                                    </Text>
+                                </View>
+                            )}
 
                             <View style={styles.dateInputRow}>
                                 {/* Day Input */}
@@ -688,6 +720,18 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
+    },
+    // Date Preview Styles
+    datePreviewContainer: {
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 24,
+        alignItems: 'center',
+    },
+    datePreviewText: {
+        fontSize: 24,
     },
 });
 
