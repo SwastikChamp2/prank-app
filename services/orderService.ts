@@ -9,7 +9,9 @@ import {
     query,
     where,
     orderBy,
-    Timestamp
+    Timestamp,
+    updateDoc,
+    increment
 } from 'firebase/firestore';
 import { AddressData } from './addressService';
 
@@ -168,14 +170,112 @@ export const createOrder = async (
             userPhoneNumber = '';
         }
 
-        // Generate unique IDs
+        // ── Inventory validation ──
+        // Count how many times each prank/box/wrap appears in the order
+        const prankIdCounts: Record<string, number> = {};
+        const boxTitleCounts: Record<string, number> = {};
+        const wrapTitleCounts: Record<string, number> = {};
+
+        for (const item of items) {
+            if (item.prankId) {
+                prankIdCounts[item.prankId] = (prankIdCounts[item.prankId] || 0) + 1;
+            }
+            if (item.boxTitle) {
+                boxTitleCounts[item.boxTitle] = (boxTitleCounts[item.boxTitle] || 0) + 1;
+            }
+            if (item.wrapTitle) {
+                wrapTitleCounts[item.wrapTitle] = (wrapTitleCounts[item.wrapTitle] || 0) + 1;
+            }
+        }
+
+        // Validate prank stock (query by 'id' field, not Firestore doc ID)
+        const prankDocMap: Record<string, { firestoreDocId: string; available: number }> = {};
+        for (const [prankId, needed] of Object.entries(prankIdCounts)) {
+            const prankQuery = query(collection(db, 'pranks'), where('id', '==', prankId));
+            const prankSnap = await getDocs(prankQuery);
+            if (prankSnap.empty) {
+                // Fallback: try direct doc ID lookup
+                const directRef = doc(db, 'pranks', prankId);
+                const directSnap = await getDoc(directRef);
+                if (!directSnap.exists()) {
+                    return { success: false, error: `Prank not found in inventory` };
+                }
+                const available = directSnap.data()?.quantity ?? 0;
+                if (available < needed) {
+                    const prankName = directSnap.data()?.prankTitle || 'This prank';
+                    return {
+                        success: false,
+                        error: available === 0
+                            ? `"${prankName}" is out of stock`
+                            : `"${prankName}" only has ${available} left in stock (you need ${needed})`
+                    };
+                }
+                prankDocMap[prankId] = { firestoreDocId: directSnap.id, available };
+            } else {
+                const prankDoc = prankSnap.docs[0];
+                const available = prankDoc.data()?.quantity ?? 0;
+                if (available < needed) {
+                    const prankName = prankDoc.data()?.prankTitle || 'This prank';
+                    return {
+                        success: false,
+                        error: available === 0
+                            ? `"${prankName}" is out of stock`
+                            : `"${prankName}" only has ${available} left in stock (you need ${needed})`
+                    };
+                }
+                prankDocMap[prankId] = { firestoreDocId: prankDoc.id, available };
+            }
+        }
+
+        // Validate box stock
+        const boxDocMap: Record<string, { firestoreDocId: string; available: number }> = {};
+        for (const boxTitle of Object.keys(boxTitleCounts)) {
+            const boxQuery = query(collection(db, 'boxes'), where('boxTitle', '==', boxTitle));
+            const boxSnap = await getDocs(boxQuery);
+            if (boxSnap.empty) {
+                return { success: false, error: `Box "${boxTitle}" not found in inventory` };
+            }
+            const boxDoc = boxSnap.docs[0];
+            const available = boxDoc.data()?.quantity ?? 0;
+            const needed = boxTitleCounts[boxTitle];
+            if (available < needed) {
+                return {
+                    success: false,
+                    error: available === 0
+                        ? `Box "${boxTitle}" is out of stock`
+                        : `Box "${boxTitle}" only has ${available} left in stock (you need ${needed})`
+                };
+            }
+            boxDocMap[boxTitle] = { firestoreDocId: boxDoc.id, available };
+        }
+
+        // Validate wrap stock
+        const wrapDocMap: Record<string, { firestoreDocId: string; available: number }> = {};
+        for (const wrapTitle of Object.keys(wrapTitleCounts)) {
+            const wrapQuery = query(collection(db, 'wraps'), where('wrapTitle', '==', wrapTitle));
+            const wrapSnap = await getDocs(wrapQuery);
+            if (wrapSnap.empty) {
+                return { success: false, error: `Wrap "${wrapTitle}" not found in inventory` };
+            }
+            const wrapDoc = wrapSnap.docs[0];
+            const available = wrapDoc.data()?.quantity ?? 0;
+            const needed = wrapTitleCounts[wrapTitle];
+            if (available < needed) {
+                return {
+                    success: false,
+                    error: available === 0
+                        ? `Wrap "${wrapTitle}" is out of stock`
+                        : `Wrap "${wrapTitle}" only has ${available} left in stock (you need ${needed})`
+                };
+            }
+            wrapDocMap[wrapTitle] = { firestoreDocId: wrapDoc.id, available };
+        }
+
+        // ── Create order + decrement stock ──
         const orderId = generateId('PRK');
         const transactionId = generateId('TXN');
-
-        // Calculate total cost
         const totalCost = productCost + deliveryFees;
 
-        // Create order data
         const orderData: Omit<OrderData, 'orderId'> = {
             transactionId,
             userId: currentUser.uid,
@@ -194,13 +294,38 @@ export const createOrder = async (
             updatedAt: Timestamp.now(),
         };
 
-        // Add to Firestore
-        const docRef = await addDoc(collection(db, 'orders'), {
+        // Add the order document
+        await addDoc(collection(db, 'orders'), {
             orderId,
+            stockDeducted: true,
             ...orderData
         });
 
-        console.log('Order created successfully:', docRef.id);
+        // Decrement stock for each prank
+        for (const [prankId, needed] of Object.entries(prankIdCounts)) {
+            const { firestoreDocId } = prankDocMap[prankId];
+            const prankDocRef = doc(db, 'pranks', firestoreDocId);
+            await updateDoc(prankDocRef, { quantity: increment(-needed) });
+            console.log(`Prank "${prankId}" stock decremented by ${needed}`);
+        }
+
+        // Decrement stock for each box
+        for (const [boxTitle, needed] of Object.entries(boxTitleCounts)) {
+            const { firestoreDocId } = boxDocMap[boxTitle];
+            const boxDocRef = doc(db, 'boxes', firestoreDocId);
+            await updateDoc(boxDocRef, { quantity: increment(-needed) });
+            console.log(`Box "${boxTitle}" stock decremented by ${needed}`);
+        }
+
+        // Decrement stock for each wrap
+        for (const [wrapTitle, needed] of Object.entries(wrapTitleCounts)) {
+            const { firestoreDocId } = wrapDocMap[wrapTitle];
+            const wrapDocRef = doc(db, 'wraps', firestoreDocId);
+            await updateDoc(wrapDocRef, { quantity: increment(-needed) });
+            console.log(`Wrap "${wrapTitle}" stock decremented by ${needed}`);
+        }
+
+        console.log('Order created and stock deducted successfully:', orderId);
 
         return {
             success: true,
