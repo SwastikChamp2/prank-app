@@ -200,6 +200,16 @@ const PrankDetail: React.FC = () => {
                                     </Text>
                                 </TouchableOpacity>
                             )}
+
+                            {/* Out of Stock Message */}
+                            {(prank.quantity ?? 0) <= 0 && (
+                                <View style={styles.outOfStockBanner}>
+                                    <Ionicons name="alert-circle-outline" size={20} color="#E8A67D" />
+                                    <Text style={[styles.outOfStockBannerText, { fontFamily: Fonts.regular }]}>
+                                        This prank is in high demand. Please check back on this to see when it is available.
+                                    </Text>
+                                </View>
+                            )}
                         </ScrollView>
 
                         {/* Bottom Section with Price and Button - Fixed at bottom */}
@@ -214,11 +224,15 @@ const PrankDetail: React.FC = () => {
                             </View>
 
                             <TouchableOpacity
-                                style={[styles.selectButton, { backgroundColor: theme.primary }]}
+                                style={[
+                                    styles.selectButton,
+                                    { backgroundColor: (prank.quantity ?? 0) <= 0 ? '#CCCCCC' : theme.primary }
+                                ]}
                                 onPress={handleSelectPrank}
+                                disabled={(prank.quantity ?? 0) <= 0}
                             >
                                 <Text style={styles.selectButtonText}>
-                                    Select Prank
+                                    {(prank.quantity ?? 0) <= 0 ? 'Out of Stock' : 'Select Prank'}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -373,6 +387,24 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontFamily: Fonts.semiBold,
+    },
+    outOfStockBanner: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: '#FFF8F0',
+        borderRadius: 12,
+        padding: 16,
+        marginTop: 16,
+        marginBottom: 8,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: '#F0DDD0',
+    },
+    outOfStockBannerText: {
+        flex: 1,
+        fontSize: 14,
+        color: '#8B6F5A',
+        lineHeight: 20,
     },
 });
 export default PrankDetail;

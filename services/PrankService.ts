@@ -8,6 +8,7 @@ export interface Prank {
     prankDescription: string;
     prankCategory: string;
     price: number;
+    quantity: number;
     currency: string;
     coverImage: string;
     previewImage: string;
@@ -20,6 +21,7 @@ export interface PrankCard {
     name: string;
     price: string;
     image: string;
+    quantity: number;
 }
 
 /**
@@ -37,6 +39,7 @@ export const fetchAllPranks = async (): Promise<PrankCard[]> => {
                 name: data.prankTitle,
                 price: data.price.toString(),
                 image: data.coverImage,
+                quantity: data.quantity ?? 0,
             };
         });
 
@@ -63,6 +66,7 @@ export const fetchPranksByCategory = async (categoryName: string): Promise<Prank
                 name: data.prankTitle,
                 price: data.price.toString(),
                 image: data.previewImage,
+                quantity: data.quantity ?? 0,
             };
         });
 

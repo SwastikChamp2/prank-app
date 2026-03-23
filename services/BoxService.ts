@@ -6,6 +6,7 @@ export interface Box {
     id: string;
     boxTitle: string;
     price: number;
+    quantity: number;
     currency: string;
     boxImage: string;
     createdAt: string;
@@ -17,6 +18,7 @@ export interface BoxCard {
     name: string;
     price: string | null;
     image: string;
+    quantity: number;
 }
 
 /**
@@ -34,6 +36,7 @@ export const fetchAllBoxes = async (): Promise<BoxCard[]> => {
                 name: data.boxTitle,
                 price: data.price ? data.price.toString() : null,
                 image: data.boxImage,
+                quantity: data.quantity ?? 0,
             };
         });
 

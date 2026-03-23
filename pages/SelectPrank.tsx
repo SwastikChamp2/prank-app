@@ -26,27 +26,36 @@ type ProductCardProps = {
     name: string;
     price: string;
     image: string;
+    quantity: number;
     theme: typeof Colors.light;
     onPress: () => void;
 };
 
-const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, image, theme, onPress }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ id, name, price, image, quantity, theme, onPress }) => {
+    const isOutOfStock = quantity <= 0;
     return (
         <TouchableOpacity
-            style={[styles.productCard, { backgroundColor: theme.white }]}
-            onPress={onPress}
+            style={[styles.productCard, { backgroundColor: theme.white }, isOutOfStock && styles.outOfStockCard]}
+            onPress={isOutOfStock ? undefined : onPress}
+            activeOpacity={isOutOfStock ? 1 : 0.7}
+            disabled={isOutOfStock}
         >
             <View style={styles.imageContainer}>
                 <Image
                     source={{ uri: image }}
-                    style={styles.productImage}
+                    style={[styles.productImage, isOutOfStock && styles.outOfStockImage]}
                     resizeMode="cover"
                 />
+                {isOutOfStock && (
+                    <View style={styles.outOfStockOverlay}>
+                        <Text style={styles.outOfStockText}>Out of Stock</Text>
+                    </View>
+                )}
             </View>
-            <Text style={[styles.productName, { color: theme.text }]} numberOfLines={2}>
+            <Text style={[styles.productName, { color: isOutOfStock ? '#999' : theme.text }]} numberOfLines={2}>
                 {name}
             </Text>
-            <Text style={[styles.productPrice, { color: theme.primary }]}>₹{price}</Text>
+            <Text style={[styles.productPrice, { color: isOutOfStock ? '#CCC' : theme.primary }]}>₹{price}</Text>
         </TouchableOpacity>
     );
 };
@@ -277,6 +286,7 @@ const HomeScreen: React.FC = () => {
                                     name={prank.name}
                                     price={prank.price}
                                     image={prank.image}
+                                    quantity={prank.quantity}
                                     theme={theme}
                                     onPress={() => handlePrankSelect(prank)}
                                 />
@@ -479,6 +489,33 @@ const styles = StyleSheet.create({
     loadingOverlayText: {
         fontSize: 16,
         marginTop: 12,
+    },
+    outOfStockCard: {
+        opacity: 0.6,
+    },
+    outOfStockImage: {
+        opacity: 0.4,
+    },
+    outOfStockOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+    },
+    outOfStockText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontFamily: Fonts.bold,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+        overflow: 'hidden',
     },
 });
 

@@ -1,5 +1,5 @@
 // pages/Home.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,14 @@ import {
   useColorScheme,
   ScrollView,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Fonts } from '../constants/theme';
 import Footer from '@/components/Footer/Footer';
 import { fetchPrankCategories } from '../services/PrankCategoryService';
+import { fetchAllPranks, PrankCard } from '../services/PrankService';
 import { db, auth } from '../config/firebase.config';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -38,10 +40,31 @@ const Home = () => {
   const [userName, setUserName] = useState('User');
   const [profileImage, setProfileImage] = useState(require('../assets/images/profile.jpg'));
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allPranks, setAllPranks] = useState<PrankCard[]>([]);
+  const [searchResults, setSearchResults] = useState<PrankCard[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const pranksLoadedRef = useRef(false);
+
   useEffect(() => {
     loadUserData();
     loadCategories();
   }, []);
+
+  // Filter pranks when search query changes
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setSearchResults([]);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = allPranks.filter((prank) =>
+      prank.name.toLowerCase().includes(query)
+    );
+    setSearchResults(filtered);
+  }, [searchQuery, allPranks]);
 
   const loadUserData = async () => {
     try {
@@ -88,6 +111,35 @@ const Home = () => {
     }
   };
 
+  // Load all pranks once when user starts typing
+  const loadAllPranks = async () => {
+    if (pranksLoadedRef.current) return;
+    try {
+      setSearchLoading(true);
+      const fetched = await fetchAllPranks();
+      setAllPranks(fetched);
+      pranksLoadedRef.current = true;
+    } catch (err) {
+      console.error('Error loading pranks for search:', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (text.trim().length > 0 && !pranksLoadedRef.current) {
+      loadAllPranks();
+    }
+  };
+
+  const handlePrankPress = (prankId: string) => {
+    router.push({
+      pathname: '/prank-detail',
+      params: { prankId },
+    });
+  };
+
   const getBackgroundColor = (index: number) => {
     const colors = ['#E8A67D', '#7FB899', '#E8A67D', '#D1D1D1', '#E8E8E8'];
     return colors[index % colors.length];
@@ -99,6 +151,8 @@ const Home = () => {
       params: { category: categoryTitle },
     });
   };
+
+  const isSearchActive = searchQuery.trim().length > 0;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -131,71 +185,166 @@ const Home = () => {
           </Text>
         </View>
 
-        {/* Loading State */}
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-              Loading categories...
-            </Text>
-          </View>
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <View style={styles.errorContainer}>
-            <Text style={[styles.errorText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
-              {error}
-            </Text>
-            <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: theme.primary }]}
-              onPress={loadCategories}
-            >
-              <Text style={[styles.retryButtonText, { fontFamily: Fonts.semiBold }]}>
-                Retry
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Category Cards */}
-        {!loading && categories.length > 0 && (
-          <View style={styles.categoriesContainer}>
-            {categories.map((category, index) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryCard,
-                  { backgroundColor: getBackgroundColor(index) },
-                ]}
-                activeOpacity={0.8}
-                onPress={() => handleCategoryPress(category.title)}
-              >
-                <Image
-                  source={{ uri: category.imageUrl }}
-                  style={styles.categoryImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.categoryContent}>
-                  <Text style={[styles.categoryTitle, { fontFamily: Fonts.semiBold }]}>
-                    {category.title}
-                  </Text>
-                  <Text style={[styles.categoryCount, { fontFamily: Fonts.regular }]}>
-                    {category.count}
-                  </Text>
-                </View>
+        {/* Search Bar */}
+        <View style={styles.searchBarContainer}>
+          <View style={[styles.searchBar, { backgroundColor: theme.searchBg || '#F5F5F5' }]}>
+            <Ionicons name="search" size={20} color={theme.grey} style={styles.searchIcon} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.text, fontFamily: Fonts.regular }]}
+              placeholder="Search pranks across all categories..."
+              placeholderTextColor={theme.grey}
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
+                <Ionicons name="close-circle" size={20} color={theme.grey} />
               </TouchableOpacity>
-            ))}
+            )}
+          </View>
+        </View>
+
+        {/* Search Results */}
+        {isSearchActive && (
+          <View style={styles.searchResultsContainer}>
+            {searchLoading && (
+              <View style={styles.searchLoadingContainer}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={[styles.searchLoadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                  Loading pranks...
+                </Text>
+              </View>
+            )}
+
+            {!searchLoading && searchResults.length > 0 && (
+              <>
+                <Text style={[styles.searchResultsTitle, { color: theme.text, fontFamily: Fonts.semiBold }]}>
+                  {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+                </Text>
+                <View style={styles.searchResultsGrid}>
+                  {searchResults.map((prank) => (
+                    <TouchableOpacity
+                      key={prank.id}
+                      style={[
+                        styles.searchResultCard,
+                        { backgroundColor: theme.white || '#FFFFFF' },
+                        prank.quantity <= 0 && styles.searchResultCardOutOfStock,
+                      ]}
+                      onPress={() => handlePrankPress(prank.id)}
+                      activeOpacity={0.8}
+                    >
+                      <View style={styles.searchResultImageContainer}>
+                        <Image
+                          source={{ uri: prank.image }}
+                          style={[
+                            styles.searchResultImage,
+                            prank.quantity <= 0 && { opacity: 0.4 },
+                          ]}
+                          resizeMode="cover"
+                        />
+                        {prank.quantity <= 0 && (
+                          <View style={styles.searchResultOutOfStockOverlay}>
+                            <Text style={styles.searchResultOutOfStockText}>Out of Stock</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text
+                        style={[styles.searchResultName, { color: prank.quantity <= 0 ? '#999' : theme.text }]}
+                        numberOfLines={2}
+                      >
+                        {prank.name}
+                      </Text>
+                      <Text style={[styles.searchResultPrice, { color: prank.quantity <= 0 ? '#CCC' : theme.primary }]}>
+                        ₹{prank.price}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {!searchLoading && searchResults.length === 0 && pranksLoadedRef.current && (
+              <View style={styles.noResultsContainer}>
+                <Ionicons name="search-outline" size={48} color={theme.grey} />
+                <Text style={[styles.noResultsText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                  No pranks found for "{searchQuery}"
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
-        {/* Empty State */}
-        {!loading && categories.length === 0 && !error && (
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: theme.grey, fontFamily: Fonts.regular }]}>
-              No categories available
-            </Text>
-          </View>
+        {/* Category Cards — hidden when search is active */}
+        {!isSearchActive && (
+          <>
+            {/* Loading State */}
+            {loading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={[styles.loadingText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                  Loading categories...
+                </Text>
+              </View>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { color: theme.primary, fontFamily: Fonts.semiBold }]}>
+                  {error}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.retryButton, { backgroundColor: theme.primary }]}
+                  onPress={loadCategories}
+                >
+                  <Text style={[styles.retryButtonText, { fontFamily: Fonts.semiBold }]}>
+                    Retry
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Category Cards */}
+            {!loading && categories.length > 0 && (
+              <View style={styles.categoriesContainer}>
+                {categories.map((category, index) => (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={[
+                      styles.categoryCard,
+                      { backgroundColor: getBackgroundColor(index) },
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => handleCategoryPress(category.title)}
+                  >
+                    <Image
+                      source={{ uri: category.imageUrl }}
+                      style={styles.categoryImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.categoryContent}>
+                      <Text style={[styles.categoryTitle, { fontFamily: Fonts.semiBold }]}>
+                        {category.title}
+                      </Text>
+                      <Text style={[styles.categoryCount, { fontFamily: Fonts.regular }]}>
+                        {category.count}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Empty State */}
+            {!loading && categories.length === 0 && !error && (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: theme.grey, fontFamily: Fonts.regular }]}>
+                  No categories available
+                </Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -234,13 +383,129 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
     lineHeight: 32,
   },
+  // Search bar styles
+  searchBarContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    height: '100%',
+  },
+  clearButton: {
+    padding: 4,
+  },
+  // Search results styles
+  searchResultsContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+  searchLoadingContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 30,
+    gap: 10,
+  },
+  searchLoadingText: {
+    fontSize: 14,
+  },
+  searchResultsTitle: {
+    fontSize: 16,
+    marginBottom: 14,
+  },
+  searchResultsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  searchResultCard: {
+    width: '48%',
+    borderRadius: 16,
+    padding: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+    minHeight: 230,
+  },
+  searchResultCardOutOfStock: {
+    opacity: 0.6,
+  },
+  searchResultImageContainer: {
+    width: '100%',
+    height: 140,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  searchResultImage: {
+    width: '100%',
+    height: '100%',
+  },
+  searchResultOutOfStockOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  searchResultOutOfStockText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  searchResultName: {
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
+    marginBottom: 6,
+    lineHeight: 20,
+    height: 40,
+  },
+  searchResultPrice: {
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
+  noResultsText: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  // Original styles
   categoriesContainer: {
     paddingHorizontal: 20,
     gap: 12,
@@ -319,47 +584,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingBottom: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  navItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  navIconActive: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navLabel: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  navLabelActive: {
-    fontSize: 12,
-    fontWeight: '500',
   },
 });
 

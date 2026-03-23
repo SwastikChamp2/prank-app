@@ -6,6 +6,7 @@ export interface Wrap {
     id: string;
     wrapTitle: string;
     price: number;
+    quantity: number;
     currency: string;
     wrapImage: string;
     createdAt: string;
@@ -17,6 +18,7 @@ export interface WrapCard {
     name: string;
     price: string | null;
     image: string;
+    quantity: number;
 }
 
 /**
@@ -34,6 +36,7 @@ export const fetchAllWraps = async (): Promise<WrapCard[]> => {
                 name: data.wrapTitle,
                 price: data.price ? data.price.toString() : null,
                 image: data.wrapImage,
+                quantity: data.quantity ?? 0,
             };
         });
 

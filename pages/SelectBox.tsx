@@ -25,12 +25,14 @@ type BoxCardProps = {
     name: string;
     price: string | null;
     image: string;
+    quantity: number;
     theme: typeof Colors.light;
     isSelected: boolean;
     onPress: () => void;
 };
 
-const BoxCardComponent: React.FC<BoxCardProps> = ({ name, price, image, theme, isSelected, onPress }) => {
+const BoxCardComponent: React.FC<BoxCardProps> = ({ name, price, image, quantity, theme, isSelected, onPress }) => {
+    const isOutOfStock = quantity <= 0;
     return (
         <TouchableOpacity
             style={[
@@ -39,25 +41,32 @@ const BoxCardComponent: React.FC<BoxCardProps> = ({ name, price, image, theme, i
                     backgroundColor: theme.white,
                     borderWidth: isSelected ? 2 : 0,
                     borderColor: isSelected ? theme.primary : 'transparent'
-                }
+                },
+                isOutOfStock && styles.outOfStockCard,
             ]}
-            onPress={onPress}
-            activeOpacity={0.7}
+            onPress={isOutOfStock ? undefined : onPress}
+            activeOpacity={isOutOfStock ? 1 : 0.7}
+            disabled={isOutOfStock}
         >
             <View style={[styles.imageContainer, { backgroundColor: isSelected ? theme.lightOrange : '#F5F5F5' }]}>
                 <Image
                     source={{ uri: image }}
-                    style={styles.boxImage}
+                    style={[styles.boxImage, isOutOfStock && styles.outOfStockImage]}
                     resizeMode="cover"
                 />
+                {isOutOfStock && (
+                    <View style={styles.outOfStockOverlay}>
+                        <Text style={styles.outOfStockText}>Out of Stock</Text>
+                    </View>
+                )}
             </View>
-            <Text style={[styles.boxName, { color: theme.text }]} numberOfLines={2}>
+            <Text style={[styles.boxName, { color: isOutOfStock ? '#999' : theme.text }]} numberOfLines={2}>
                 {name}
             </Text>
             {price ? (
-                <Text style={[styles.boxPrice, { color: theme.primary }]}>₹{price}</Text>
+                <Text style={[styles.boxPrice, { color: isOutOfStock ? '#CCC' : theme.primary }]}>₹{price}</Text>
             ) : (
-                <Text style={[styles.freeText, { color: theme.primary }]}>FREE</Text>
+                <Text style={[styles.freeText, { color: isOutOfStock ? '#CCC' : theme.primary }]}>FREE</Text>
             )}
         </TouchableOpacity>
     );
@@ -163,11 +172,12 @@ const SelectBox: React.FC = () => {
         setActiveTab(tab as 'home' | 'orders' | 'cart' | 'profile');
     };
 
-    const handleBoxSelect = (boxId: string, boxName: string, boxPrice: string | null, boxImage: string) => {
-        setSelectedBoxId(boxId);
-        setSelectedBoxName(boxName);
-        setSelectedBoxPrice(boxPrice);
-        setSelectedBoxImage(boxImage);
+    const handleBoxSelect = (box: BoxCard) => {
+        if (box.quantity <= 0) return; // Prevent selecting out-of-stock boxes
+        setSelectedBoxId(box.id);
+        setSelectedBoxName(box.name);
+        setSelectedBoxPrice(box.price);
+        setSelectedBoxImage(box.image);
     };
 
     const handleNavigateToWrap = async () => {
@@ -318,9 +328,10 @@ const SelectBox: React.FC = () => {
                                         name={box.name}
                                         price={box.price}
                                         image={box.image}
+                                        quantity={box.quantity}
                                         theme={theme}
                                         isSelected={selectedBoxId === box.id}
-                                        onPress={() => handleBoxSelect(box.id, box.name, box.price, box.image)}
+                                        onPress={() => handleBoxSelect(box)}
                                     />
                                 ))}
                             </View>
@@ -526,6 +537,33 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontFamily: Fonts.semiBold,
+    },
+    outOfStockCard: {
+        opacity: 0.6,
+    },
+    outOfStockImage: {
+        opacity: 0.4,
+    },
+    outOfStockOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12,
+    },
+    outOfStockText: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontFamily: Fonts.bold,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 8,
+        overflow: 'hidden',
     },
 });
 
